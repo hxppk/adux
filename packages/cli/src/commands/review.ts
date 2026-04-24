@@ -6,6 +6,7 @@ import {
   formatJson,
   formatMarkdown,
   formatText,
+  loadAduxConfig,
   loadMigrations,
   parseSource,
   runRules,
@@ -62,7 +63,11 @@ export async function review(
 
   const migrationSet = await loadMigrations().catch(() => null);
   const migrations = migrationSet?.entries ?? [];
-  const registry = createDefaultRegistry({ migrations });
+  const loadedConfig = await loadAduxConfig({ cwd: path.dirname(files[0]!) });
+  const registry = createDefaultRegistry({
+    migrations,
+    config: loadedConfig?.config,
+  });
 
   const perFile: ReportInput[] = [];
   for (const f of files) {

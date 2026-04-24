@@ -1,5 +1,6 @@
 import type { MigrationEntry } from "../migrations/types.js";
 import { RuleRegistry } from "../rules/registry.js";
+import { applyAduxConfig, type AduxConfig } from "./loader.js";
 import { requireAntdComponent } from "../rules/require-antd-component.js";
 import { noOtherDesignSystems } from "../rules/no-other-design-systems.js";
 import { designTokenOnly } from "../rules/design-token-only.js";
@@ -12,6 +13,8 @@ import { noDeprecatedApi } from "../rules/no-deprecated-api.js";
 export interface DefaultRegistryOptions {
   /** Migration entries from `antd migrate` for no-deprecated-api. */
   migrations?: MigrationEntry[];
+  /** Optional rule overrides loaded from adux.config.*. */
+  config?: AduxConfig;
 }
 
 /**
@@ -37,5 +40,5 @@ export function createDefaultRegistry(
     });
   }
 
-  return reg;
+  return applyAduxConfig(reg, opts.config);
 }
