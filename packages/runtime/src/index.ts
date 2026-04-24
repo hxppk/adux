@@ -5,7 +5,7 @@ export * from "./rules/index.js";
 
 import { startInstrument } from "./instrument/index.js";
 import { createOverlay } from "./overlay/index.js";
-import { runtimeBareButton } from "./rules/runtime-bare-button.js";
+import { runtimeRequireAntdComponent } from "./rules/runtime-require-antd-component.js";
 import { runtimeHardcodedColor } from "./rules/runtime-hardcoded-color.js";
 import type {
   Runtime,
@@ -15,7 +15,7 @@ import type {
 } from "./types.js";
 
 const DEFAULT_RUNTIME_RULES: RuntimeRule[] = [
-  runtimeBareButton,
+  runtimeRequireAntdComponent,
   runtimeHardcodedColor,
 ];
 
