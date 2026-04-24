@@ -69,6 +69,6 @@ pnpm typecheck
 ```
 
 当前基线已验证：
-- `pnpm -r test`：86 tests pass
+- `pnpm -r test`：99 tests pass
 - `pnpm -r typecheck`：pass
 - `pnpm -r build`：pass
