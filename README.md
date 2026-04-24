@@ -16,10 +16,11 @@ Pre-alpha · v0.0.1 alpha baseline（2026-04-24）
 - `adux dev` / `adux generate` CLI 入口尚未实现。
 - 飞书 bot、PR 集成、npm 发布流程尚未实现。
 
-设计文档：`/Users/hexu/PM流程/antdx-design-v2-working.md`  
-上游能力实测：`/Users/hexu/PM流程/antd-capability-probe.md`  
-Runtime 选型调研：`/Users/hexu/PM流程/adux-runtime-research.md`  
-飞书使用指南：`https://www.feishu.cn/docx/Oc5CdyWvKoY4Arx2KOBcZFAJnbe`
+- 产品规划与路线图：[`docs/roadmap.md`](docs/roadmap.md)
+- 设计稿：[`docs/design/v2-working.md`](docs/design/v2-working.md)
+- 上游 antd CLI 能力实测：[`docs/research/antd-cli-probe.md`](docs/research/antd-cli-probe.md)
+- 浏览器 overlay OSS 选型：[`docs/research/runtime-overlay.md`](docs/research/runtime-overlay.md)
+- 完整使用指南（飞书权威 + git 快照）：[`docs/usage-guide.md`](docs/usage-guide.md) · [飞书链接](https://www.feishu.cn/docx/Oc5CdyWvKoY4Arx2KOBcZFAJnbe)
 
 ## Packages
 - `@adux/core` — AST 解析、规则框架、8 条静态规则、reporter、MCP/migration 基础能力。
