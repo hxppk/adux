@@ -1,0 +1,27 @@
+{
+  "name": "@adux/runtime",
+  "version": "0.0.1",
+  "description": "ADUX browser runtime — overlay violations on real UI (Shadow DOM + Canvas + Preact)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "bippy": "^0.5.39",
+    "preact": "^10.29.1"
+  }
+}

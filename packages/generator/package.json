@@ -1,0 +1,7 @@
+{
+  "name": "@adux/generator",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "ADUX prototype generator — W2 placeholder (will reorganize pm-antd-prototype)"
+}
