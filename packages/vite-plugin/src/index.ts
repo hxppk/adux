@@ -33,6 +33,13 @@ export default function adux(options: AduxPluginOptions = {}): Plugin {
   const editorEndpoint = options.editorEndpoint ?? "/__adux/open-editor";
   const runtimeJson = safeRuntimeOpts(options.runtime);
 
+  // Captured in configResolved so transformIndexHtml can prefix the virtual
+  // module URL with the user's `base` config (e.g. "/ai-task-console/").
+  // Without this, projects with a non-"/" base see the injected
+  // `<script src="/@id/__x00__adux-runtime">` 404 because the absolute path
+  // bypasses the base prefix.
+  let resolvedBase = "/";
+
   return {
     name: "adux",
     apply: "serve",
@@ -49,11 +56,17 @@ export default function adux(options: AduxPluginOptions = {}): Plugin {
       };
     },
 
+    configResolved(config) {
+      resolvedBase = config.base ?? "/";
+    },
+
     transformIndexHtml(html) {
+      const baseNoTrail = resolvedBase.replace(/\/$/, "");
+      const requestPath = `${baseNoTrail}${VIRTUAL_REQUEST_PATH}`;
       return html.replace(
         "</head>",
         `<script type="module">
-import { init } from "${VIRTUAL_REQUEST_PATH}";
+import { init } from "${requestPath}";
 init(${runtimeJson});
 </script>
 </head>`,
