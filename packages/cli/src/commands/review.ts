@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import fastGlob from "fast-glob";
 import {
+  type AduxConfig,
   createDefaultRegistry,
   formatJson,
   formatMarkdown,
@@ -19,9 +20,27 @@ export interface ReviewOptions {
   format: ReportFormat;
 }
 
+export interface ReviewSummary {
+  filesScanned: number;
+  filesWithIssues: number;
+  totalErrors: number;
+  totalWarns: number;
+}
+
+export interface ReviewData {
+  files: string[];
+  perFile: ReportInput[];
+  withIssues: ReportInput[];
+  summary: ReviewSummary;
+  config?: AduxConfig;
+  configPath?: string;
+  target: string;
+}
+
 export interface ReviewResult {
   exitCode: number;
   output: string;
+  data: ReviewData;
 }
 
 const SOURCE_EXT_GLOB = "**/*.{tsx,ts,jsx,js,mjs,cjs}";
@@ -34,39 +53,84 @@ const IGNORE = [
   "**/coverage/**",
 ];
 
-async function resolveTargets(target: string): Promise<string[]> {
+async function resolveTargets(
+  target: string,
+  include: string[],
+  ignore: string[],
+  useConfigInclude: boolean,
+): Promise<string[]> {
   const abs = path.resolve(target);
   const stat = await fs.stat(abs).catch(() => null);
   if (stat?.isFile()) return [abs];
   if (stat?.isDirectory()) {
-    return fastGlob([SOURCE_EXT_GLOB], {
+    return fastGlob(useConfigInclude ? include : [SOURCE_EXT_GLOB], {
       cwd: abs,
       absolute: true,
-      ignore: IGNORE,
+      ignore,
     });
   }
   // Treat the input as a glob pattern (allow wildcards relative to cwd).
   return fastGlob([target], {
     absolute: true,
-    ignore: IGNORE,
+    ignore,
   });
 }
 
 export async function review(
-  target: string,
+  target: string | undefined,
   options: ReviewOptions,
 ): Promise<ReviewResult> {
-  const files = await resolveTargets(target);
-  if (files.length === 0) {
-    return { exitCode: 0, output: `${target}: no source files matched.` };
+  const data = await collectReview(target);
+
+  if (data.files.length === 0) {
+    return {
+      exitCode: 0,
+      output: `${data.target}: no source files matched.`,
+      data,
+    };
   }
+
+  const output = formatAggregate({
+    format: options.format,
+    files: data.summary.filesScanned,
+    perFile: data.perFile,
+    withIssues: data.withIssues,
+    totalErrors: data.summary.totalErrors,
+    totalWarns: data.summary.totalWarns,
+  });
+
+  return {
+    exitCode: data.summary.totalErrors > 0 ? 1 : 0,
+    output,
+    data,
+  };
+}
+
+export async function collectReview(
+  target?: string,
+): Promise<ReviewData> {
+  const configCwd = await configSearchCwd(target);
+  const loadedConfig = await loadAduxConfig({ cwd: configCwd });
+  const config = loadedConfig?.config;
+  const configDir = loadedConfig ? path.dirname(loadedConfig.path) : process.cwd();
+  const hasExplicitTarget = Boolean(target);
+  const reviewTarget = target
+    ? path.resolve(target)
+    : path.resolve(configDir, config?.target?.root ?? ".");
+  const include = config?.target?.include ?? [SOURCE_EXT_GLOB];
+  const ignore = [...IGNORE, ...(config?.target?.exclude ?? [])];
+  const files = await resolveTargets(
+    reviewTarget,
+    include,
+    ignore,
+    !hasExplicitTarget,
+  );
 
   const migrationSet = await loadMigrations().catch(() => null);
   const migrations = migrationSet?.entries ?? [];
-  const loadedConfig = await loadAduxConfig({ cwd: path.dirname(files[0]!) });
   const registry = createDefaultRegistry({
     migrations,
-    config: loadedConfig?.config,
+    config,
   });
 
   const perFile: ReportInput[] = [];
@@ -80,16 +144,20 @@ export async function review(
   const { totalErrors, totalWarns } = summarize(perFile);
   const withIssues = perFile.filter((p) => p.violations.length > 0);
 
-  const output = formatAggregate({
-    format: options.format,
-    files: files.length,
+  return {
+    files,
     perFile,
     withIssues,
-    totalErrors,
-    totalWarns,
-  });
-
-  return { exitCode: totalErrors > 0 ? 1 : 0, output };
+    summary: {
+      filesScanned: files.length,
+      filesWithIssues: withIssues.length,
+      totalErrors,
+      totalWarns,
+    },
+    config,
+    configPath: loadedConfig?.path,
+    target: reviewTarget,
+  };
 }
 
 interface AggregateArgs {
@@ -147,6 +215,15 @@ function summarize(perFile: ReportInput[]): {
     }
   }
   return { totalErrors, totalWarns };
+}
+
+async function configSearchCwd(target?: string): Promise<string> {
+  if (!target) return process.cwd();
+  const abs = path.resolve(target);
+  const stat = await fs.stat(abs).catch(() => null);
+  if (stat?.isFile()) return path.dirname(abs);
+  if (stat?.isDirectory()) return abs;
+  return process.cwd();
 }
 
 // Re-export for potential library callers

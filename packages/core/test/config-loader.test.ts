@@ -94,4 +94,51 @@ describe("adux config", () => {
       "warn",
     ]);
   });
+
+  it("preserves v0.0.2 onboarding config fields", async () => {
+    const root = await makeTempDir();
+    await fs.writeFile(
+      path.join(root, "adux.config.cjs"),
+      `module.exports = {
+        meta: { schemaVersion: 1, projectName: "console" },
+        designSystem: {
+          name: "antd",
+          version: "5",
+          adapter: "@adux/adapter-antd",
+          skill: "adux-antd",
+          preset: "recommended",
+        },
+        target: {
+          mode: "repo",
+          root: ".",
+          include: ["src/**/*.tsx"],
+          exclude: ["src/legacy/**"],
+          devServer: { command: "pnpm dev", url: "http://127.0.0.1:5173" },
+          routes: ["/"],
+        },
+        runtime: { enabled: true, via: "vite-plugin", openEditor: true },
+        reports: {
+          outDir: "adux-report",
+          views: ["designer", "frontend", "developer"],
+          screenshots: false,
+        },
+        rules: { "require-antd-component": "error" },
+      };`,
+      "utf8",
+    );
+
+    const loaded = await loadAduxConfig({ cwd: root });
+
+    expect(loaded?.config.meta?.projectName).toBe("console");
+    expect(loaded?.config.designSystem?.name).toBe("antd");
+    expect(loaded?.config.target?.include).toEqual(["src/**/*.tsx"]);
+    expect(loaded?.config.target?.devServer?.command).toBe("pnpm dev");
+    expect(loaded?.config.runtime?.via).toBe("vite-plugin");
+    expect(loaded?.config.reports?.views).toEqual([
+      "designer",
+      "frontend",
+      "developer",
+    ]);
+    expect(loaded?.config.rules?.["require-antd-component"]).toBe("error");
+  });
 });
