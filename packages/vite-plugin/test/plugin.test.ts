@@ -30,13 +30,59 @@ describe("adux vite plugin", () => {
     expect(result.indexOf("<script")).toBeLessThan(result.indexOf("</head>"));
   });
 
-  it("resolveId returns non-null for /@id/adux-runtime", () => {
+  it("transformIndexHtml prefixes injected virtual id with Vite base", () => {
+    const plugin = adux();
+    plugin.configResolved!({ base: "/ai-task-console/" } as any);
+
+    const html = "<html><head></head><body></body></html>";
+    const result = (plugin.transformIndexHtml as (html: string) => string)(html);
+
+    expect(result).toContain('/ai-task-console/@id/__x00__adux-runtime');
+  });
+
+  it("transformIndexHtml only serializes JSON-safe runtime options", () => {
+    const plugin = adux({
+      runtime: {
+        debug: true,
+        overlay: false,
+        ruleFilter: () => true,
+      },
+    });
+
+    const html = "<html><head></head><body></body></html>";
+    const result = (plugin.transformIndexHtml as (html: string) => string)(html);
+
+    expect(result).toContain('init({"debug":true,"overlay":false});');
+    expect(result).not.toContain("ruleFilter");
+  });
+
+  it("resolveId returns non-null for the encoded Vite virtual id", () => {
+    const plugin = adux();
+    const resolved = (plugin.resolveId as (id: string) => string | undefined)(
+      "/@id/__x00__adux-runtime",
+    );
+    expect(resolved).toBeTruthy();
+    expect(resolved).toBe("\0adux-runtime");
+  });
+
+  it("resolveId returns non-null for legacy /@id/adux-runtime", () => {
     const plugin = adux();
     const resolved = (plugin.resolveId as (id: string) => string | undefined)(
       "/@id/adux-runtime",
     );
     expect(resolved).toBeTruthy();
     expect(resolved).toBe("\0adux-runtime");
+  });
+
+  it("resolveId resolves runtime from the plugin dependency for the virtual module", () => {
+    const plugin = adux();
+    const resolved = (
+      plugin.resolveId as (id: string, importer?: string) => string | undefined
+    )("@adux/runtime", "\0adux-runtime");
+
+    expect(resolved).toMatch(
+      /(@adux\/runtime\/dist\/index\.js|packages\/runtime\/src\/index\.ts)$/,
+    );
   });
 
   it("resolveId returns undefined for unknown ids", () => {
