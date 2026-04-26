@@ -2,6 +2,38 @@
 
 `adux report` 产出三类视图，**底层只有一份 normalized `issues.json`**，三个 renderer 在不同字段子集上工作。本文档是 issues.json schema 与三视图字段映射的契约。
 
+## Skill 字段穿透（v0.0.3+）
+
+设计师可以在 `adux.skill.cjs`（或源 `design-guidelines.md`）里**覆盖任何内置规则的说明文案与严重级**。优先级链：
+
+```
+config.rules (severity/options)        ← 用户最终覆盖
+  ↑ 覆盖
+config.skillRules (从 config.skills 合并)
+  ↑ 覆盖
+RULE_HELP 内置兜底
+  ↑ 覆盖
+defaultHelp() 默认文案
+```
+
+**字段映射**
+
+| Issue 字段 | 来源（按优先级取） |
+|---|---|
+| `rule.description` | skillRules\[id\].description → RULE_HELP\[id\].description → defaultHelp |
+| `rule.impact` | skillRules\[id\].impact → RULE_HELP\[id\].impact → defaultHelp |
+| `rule.fix` | skillRules\[id\].fix → RULE_HELP\[id\].fix → defaultHelp |
+| `rule.docsUrl` | skillRules\[id\].docsUrl → RuleMeta.docsUrl |
+| `rule.category` | skillRules\[id\].category → RULE_HELP\[id\].category → "custom" |
+| `severity` | config.rules → skillRules\[id\].severity → 内置默认 |
+| `options` | config.rules → skillRules\[id\].options → 内置默认 |
+
+**这意味着**：设计师改了 `design-guidelines.md` 的某条 rule 的 `impact` / `fix`，跑 `adux audit` 就会让设计师视图（`index.html`）的副段落、前端视图（`frontend.md`）的「修复建议」立刻按团队语境呈现，**不需要前端改任何代码**。
+
+**v0.0.3 边界**：skill 只能覆盖**已存在**的 ruleId 的元数据；无法新建 AST 检查规则。未知 ruleId 在 `config.skillRules` 里会被静默忽略（不会触发任何检查）。
+
+---
+
 ## i18n 约定
 
 - **机器可读字段保持英文**：`schemaVersion` / `origin` / `ruleId` / `severity` / `category` / `byRule` / `location.file` 等所有 schema key、ruleId 取值（如 `require-antd-component`）、CSS 类名、CLI 命令名 — 不本地化

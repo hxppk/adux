@@ -3,10 +3,11 @@
 Ant Design UX Assistant — 自动化 Ant Design 设计规范的生成与审查工具链。
 
 ## Status
-Pre-alpha · v0.0.2（2026-04-26）
+Pre-alpha · v0.0.3（2026-04-26）
 
 当前已可运行：
-- **一键审查（推荐入口）**：`adux audit <dir>` 自动探测项目 → 生成配置 → 跑审查 → 输出三角色报告 → 终端打印「下一步看这里」引导。这是首次使用最顺的路径。
+- **一键审查（推荐入口）**：`adux audit <dir>` 自动探测项目 → 生成配置 → 跑审查 → 输出三角色报告 → 终端打印「下一步看这里」引导。
+- **设计师 Skill 配置**（v0.0.3）：`adux skill init` 生成 `design-guidelines.md` 模板；`adux skill import <md>` 转成 `adux.skill.cjs` 并自动写入 `adux.config.cjs`。设计师改文案 → `adux audit` 立即让团队语境覆盖三角色报告。
 - 角色化报告：`adux report` 产出 `issues.json` + 设计师/产品 HTML + 前端修复 Markdown + 开发者调试 Markdown，支持中文文案。
 - 静态审查：`adux review <file|dir|glob>`，支持 `text` / `json` / `markdown` 输出。
 - 配置文件：`adux init` 自动探测项目并生成 `adux.config.cjs`；配置显式声明 UI 库、检查目标、runtime 和报告视图。
@@ -85,6 +86,27 @@ node packages/cli/dist/bin.js report examples/playground --out-dir /tmp/adux-rep
 # 浏览器 overlay
 pnpm --filter @adux/playground dev
 ```
+
+### 设计师 Skill 配置（v0.0.3）
+
+让设计师以 Markdown 写规则文案 / 严重级，覆盖三角色报告里的 `description` / `impact` / `fix`：
+
+```bash
+# 在项目根生成模板
+adux skill init                                   # 默认产出 ./design-guidelines.md
+
+# 设计师按团队语境编辑模板后，导入成 adux.skill.cjs
+adux skill import design-guidelines.md            # 自动注入到 adux.config.cjs 的 skills 数组
+
+# 重新跑 audit，三角色报告里的文案立刻按团队语境呈现
+adux audit . --yes
+```
+
+`adux.config.cjs` 会自动多出一行 `skills: ["./adux.skill.cjs"]`。多个 skill 文件按数组顺序覆盖（后者赢）；`config.rules` 仍然是最终覆盖层，对 severity / options 拥有最终决定权。
+
+字段穿透与优先级见 [`docs/role-report-fields.md`](docs/role-report-fields.md#skill-字段穿透v003)。
+
+> 当前 v0.0.3 的 skill 只能**覆盖已有内置规则**的元数据/严重级，未来版本会支持注入新的 AST 检查规则。
 
 ### Config
 
@@ -169,6 +191,6 @@ pnpm typecheck
 ```
 
 当前基线已验证：
-- `pnpm -r test`：124 tests pass（core 68 + vite-plugin 13 + cli 20 + runtime 23）
+- `pnpm -r test`：136 tests pass（core 73 + vite-plugin 13 + cli 28 + runtime 22）
 - `pnpm -r typecheck`：pass
 - `pnpm -r build`：pass

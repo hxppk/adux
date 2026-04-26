@@ -1,6 +1,6 @@
 # ADUX Roadmap
 
-**当前版本**：v0.0.2（2026-04-26）
+**当前版本**：v0.0.3（2026-04-26）
 **对外使用指南权威版**：[飞书 Oc5CdyWvKoY4Arx2KOBcZFAJnbe](https://www.feishu.cn/docx/Oc5CdyWvKoY4Arx2KOBcZFAJnbe)
 **v0.0.2 用户操作指南**：[飞书 PwELdQhtyopM86xqX7dcMcQvnLe](https://www.feishu.cn/docx/PwELdQhtyopM86xqX7dcMcQvnLe)
 
@@ -31,7 +31,7 @@
 
 ### 验证
 
-- **124 tests 全绿**（core 68 + vite-plugin 13 + cli 20 + runtime 23）— v0.0.2 累计
+- **136 tests 全绿**（core 73 + vite-plugin 13 + cli 28 + runtime 22）— v0.0.3 累计（+12 tests for skill: 6 cli + 4 core, +2 audit/report 兼容）
 - `pnpm -r typecheck` 全绿
 - Playground（`examples/playground`）端到端验证 overlay
 - 真实项目 sandbox 验证（`/Users/hexu/中心agent` 的 copy）：task detail 页 11 error · 1 warn；OA 审批表单页 37 error · 3 warn
@@ -67,12 +67,15 @@
 - [ ] 报告产物增加 `patch.diff`，前端可直接 review / apply
 - [ ] 不确定修复（例如设计 token 选择）只给建议，不自动写死
 
-**R3. 设计规范 Skill 输入**
-- [ ] 新命令 `adux skill init` 生成团队规范模板
-- [ ] 新命令 `adux skill import ./design-guidelines.md` 将设计师 Markdown / 表格规范转换为 ruleset 草案
-- [ ] 支持在 config 中声明 `skills: ["./adux.skill.cjs"]` 或 `designSystem.skill`
-- [ ] 规范内容覆盖组件替代、禁用组件/API、token 列表、组件 prop 要求、严重级别和修复建议
-- [ ] 设计师入口优先使用 Markdown/飞书表格，不要求写 AST 规则；开发者可把草案升级为静态/运行时规则
+**R3. 设计规范 Skill 输入** ✅ v0.0.3 minimal slice 已完成
+- [x] 新命令 `adux skill init` 生成 `design-guidelines.md` 团队规范模板（非互动，`--force` 覆盖）
+- [x] 新命令 `adux skill import <md>` 将设计师 Markdown 解析成 `adux.skill.cjs` 并自动写入 `adux.config.cjs.skills`（不重复）
+- [x] config 顶层 `skills: ["./adux.skill.cjs"]`，loadAduxConfig 合并为 `config.skillRules`，按数组顺序后覆前
+- [x] 优先级链：`config.rules` → `skillRules` → `RULE_HELP` → 默认；config.rules 是最终覆盖层
+- [x] report 三角色 renderer 优先使用 skill 提供的 `description` / `impact` / `fix` / `docsUrl`
+- [ ] **未实现（v0.0.4+）**：skill 注入新的 AST 检查规则（当前只能覆盖已有规则元数据）
+- [ ] **未实现**：从飞书表格导入；规范内容覆盖 token 列表、组件 prop 要求等结构化字段
+- [ ] **未实现**：`designSystem.skill` 自动加载默认 skill（避免隐式魔法，v0.0.3 仅作 metadata）
 
 **R4. Runtime 规则扩展**
 - [ ] `runtime-no-other-design-systems`（按 fiber displayName 检测来自其他 UI 库的组件）
