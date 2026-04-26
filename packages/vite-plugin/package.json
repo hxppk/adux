@@ -1,6 +1,6 @@
 {
   "name": "@adux/vite-plugin",
-  "version": "0.0.1",
+  "version": "0.0.4-alpha.0",
   "description": "Vite plugin that injects @adux/runtime into dev-mode apps",
   "type": "module",
   "main": "./dist/index.js",
@@ -14,6 +14,10 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public",
+    "tag": "alpha"
+  },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -21,13 +25,19 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
+    "@adux/runtime": "0.0.4-alpha.0",
     "vite": ">=5.0.0"
   },
+  "peerDependenciesMeta": {
+    "@adux/runtime": {
+      "optional": true
+    }
+  },
   "dependencies": {
-    "@adux/runtime": "workspace:*",
     "launch-editor": "^2.13.2"
   },
   "devDependencies": {
+    "@adux/runtime": "workspace:*",
     "vite": "^8.0.10"
   }
 }
