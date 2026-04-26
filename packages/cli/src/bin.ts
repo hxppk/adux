@@ -3,6 +3,7 @@ import { audit } from "./commands/audit.js";
 import { init } from "./commands/init.js";
 import { report } from "./commands/report.js";
 import { review } from "./commands/review.js";
+import { skillImport, skillInit } from "./commands/skill.js";
 
 const cli = cac("adux");
 
@@ -65,6 +66,38 @@ cli
       });
       process.stdout.write(output + "\n");
       process.exit(exitCode);
+    },
+  );
+
+cli
+  .command("skill <action> [file]", "Manage designer-provided ADUX skill config")
+  .option("--force", "Overwrite an existing skill template")
+  .option("--out <file>", "Output skill config file", {
+    default: "adux.skill.cjs",
+  })
+  .action(
+    async (
+      action: string,
+      file: string | undefined,
+      opts: { force?: boolean; out?: string },
+    ) => {
+      if (action === "init") {
+        const result = await skillInit(file, { force: opts.force });
+        process.stdout.write(result.output + "\n");
+        return;
+      }
+      if (action === "import") {
+        if (!file) {
+          process.stderr.write("Missing Markdown file: adux skill import <file>\n");
+          process.exit(1);
+        }
+        const result = await skillImport(file, { out: opts.out });
+        process.stdout.write(result.output + "\n");
+        return;
+      }
+      process.stderr.write(`Unknown skill action: ${action}\n`);
+      process.stderr.write("Use: adux skill init [file] or adux skill import <file>\n");
+      process.exit(1);
     },
   );
 

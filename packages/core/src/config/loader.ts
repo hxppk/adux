@@ -61,12 +61,32 @@ export interface AduxReportsConfig {
   screenshots?: boolean;
 }
 
+export interface AduxSkillRuleConfig {
+  severity?: RuleSeverity;
+  category?: string;
+  description?: string;
+  impact?: string;
+  fix?: string;
+  docsUrl?: string;
+  options?: Record<string, unknown>;
+}
+
+export interface AduxSkillConfig {
+  name?: string;
+  version?: string | number;
+  designSystem?: string | AduxDesignSystemConfig;
+  rules?: Record<string, AduxSkillRuleConfig>;
+}
+
 export interface AduxConfig {
   meta?: AduxConfigMeta;
   designSystem?: AduxDesignSystemConfig;
   target?: AduxTargetConfig;
   runtime?: AduxRuntimeConfig;
   reports?: AduxReportsConfig;
+  skills?: string[];
+  skillRules?: Record<string, AduxSkillRuleConfig>;
+  skillSources?: string[];
   rules?: Record<string, AduxRuleConfig>;
 }
 
@@ -103,13 +123,14 @@ export async function loadAduxConfig(
   const configPath = await findAduxConfig(options.cwd);
   if (!configPath) return null;
 
-  const config = configPath.endsWith(".json")
+  const rawConfig = configPath.endsWith(".json")
     ? JSON.parse(await fs.readFile(configPath, "utf8"))
     : await importConfig(configPath);
+  const config = normalizeConfig(rawConfig);
 
   return {
     path: configPath,
-    config: normalizeConfig(config),
+    config: await withSkillConfigs(config, path.dirname(configPath)),
   };
 }
 
@@ -117,6 +138,13 @@ export function applyAduxConfig(
   registry: RuleRegistry,
   config: AduxConfig | null | undefined,
 ): RuleRegistry {
+  if (config?.skillRules) {
+    for (const [id, value] of Object.entries(config.skillRules)) {
+      const override = normalizeSkillRuleOverride(value);
+      if (override) registry.override(id, override);
+    }
+  }
+
   if (!config?.rules) return registry;
 
   for (const [id, value] of Object.entries(config.rules)) {
@@ -150,6 +178,11 @@ function normalizeConfig(value: unknown): AduxConfig {
   const reports = isRecord(value.reports)
     ? normalizeReports(value.reports)
     : undefined;
+  const skills = stringArray(value.skills);
+  const skillRules = isRecord(value.skillRules)
+    ? normalizeSkillRules(value.skillRules)
+    : undefined;
+  const skillSources = stringArray(value.skillSources);
   const rules = isRecord(value.rules)
     ? (value.rules as Record<string, AduxRuleConfig>)
     : undefined;
@@ -160,6 +193,9 @@ function normalizeConfig(value: unknown): AduxConfig {
     target,
     runtime,
     reports,
+    skills,
+    skillRules,
+    skillSources,
     rules,
   };
 }
@@ -227,6 +263,90 @@ function normalizeReports(value: Record<string, unknown>): AduxReportsConfig {
     screenshots:
       typeof value.screenshots === "boolean" ? value.screenshots : undefined,
   };
+}
+
+async function withSkillConfigs(
+  config: AduxConfig,
+  configDir: string,
+): Promise<AduxConfig> {
+  if (!config.skills || config.skills.length === 0) return config;
+
+  const skillRules: Record<string, AduxSkillRuleConfig> = {
+    ...(config.skillRules ?? {}),
+  };
+  const skillSources: string[] = [...(config.skillSources ?? [])];
+
+  for (const skillPath of config.skills) {
+    const resolved = path.isAbsolute(skillPath)
+      ? skillPath
+      : path.resolve(configDir, skillPath);
+    const rawSkill = resolved.endsWith(".json")
+      ? JSON.parse(await fs.readFile(resolved, "utf8"))
+      : await importConfig(resolved);
+    const skill = normalizeSkillConfig(rawSkill);
+    Object.assign(skillRules, skill.rules);
+    skillSources.push(resolved);
+  }
+
+  return {
+    ...config,
+    skillRules: Object.keys(skillRules).length > 0 ? skillRules : undefined,
+    skillSources: skillSources.length > 0 ? skillSources : undefined,
+  };
+}
+
+function normalizeSkillConfig(value: unknown): AduxSkillConfig {
+  if (!isRecord(value)) return {};
+  return {
+    name: typeof value.name === "string" ? value.name : undefined,
+    version:
+      typeof value.version === "string" || typeof value.version === "number"
+        ? value.version
+        : undefined,
+    designSystem:
+      typeof value.designSystem === "string"
+        ? value.designSystem
+        : isRecord(value.designSystem)
+          ? normalizeDesignSystem(value.designSystem)
+          : undefined,
+    rules: isRecord(value.rules) ? normalizeSkillRules(value.rules) : undefined,
+  };
+}
+
+function normalizeSkillRules(
+  value: Record<string, unknown>,
+): Record<string, AduxSkillRuleConfig> | undefined {
+  const rules: Record<string, AduxSkillRuleConfig> = {};
+  for (const [id, ruleValue] of Object.entries(value)) {
+    if (!isRecord(ruleValue)) continue;
+    const rule = normalizeSkillRule(ruleValue);
+    if (Object.keys(rule).length > 0) rules[id] = rule;
+  }
+  return Object.keys(rules).length > 0 ? rules : undefined;
+}
+
+function normalizeSkillRule(
+  value: Record<string, unknown>,
+): AduxSkillRuleConfig {
+  return {
+    severity: isSeverity(value.severity) ? value.severity : undefined,
+    category: typeof value.category === "string" ? value.category : undefined,
+    description:
+      typeof value.description === "string" ? value.description : undefined,
+    impact: typeof value.impact === "string" ? value.impact : undefined,
+    fix: typeof value.fix === "string" ? value.fix : undefined,
+    docsUrl: typeof value.docsUrl === "string" ? value.docsUrl : undefined,
+    options: isRecord(value.options) ? value.options : undefined,
+  };
+}
+
+function normalizeSkillRuleOverride(
+  value: AduxSkillRuleConfig,
+): RuleOverride | null {
+  const severity = isSeverity(value.severity) ? value.severity : undefined;
+  const options = isRecord(value.options) ? value.options : undefined;
+  if (!severity && !options) return null;
+  return { severity, options };
 }
 
 function normalizeRuleConfig(
