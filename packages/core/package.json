@@ -1,6 +1,6 @@
 {
   "name": "@adux/core",
-  "version": "0.0.1",
+  "version": "0.0.4-alpha.0",
   "description": "ADUX core engine — MCP client, AST parser, rule framework",
   "type": "module",
   "main": "./dist/index.js",
@@ -24,6 +24,10 @@
     }
   },
   "files": ["dist"],
+  "publishConfig": {
+    "access": "public",
+    "tag": "alpha"
+  },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",

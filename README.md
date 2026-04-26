@@ -3,7 +3,7 @@
 Ant Design UX Assistant — 自动化 Ant Design 设计规范的生成与审查工具链。
 
 ## Status
-Pre-alpha · v0.0.3（2026-04-26）
+Pre-alpha · v0.0.4-alpha.0（2026-04-26）
 
 当前已可运行：
 - **一键审查（推荐入口）**：`adux audit <dir>` 自动探测项目 → 生成配置 → 跑审查 → 输出三角色报告 → 终端打印「下一步看这里」引导。
@@ -17,7 +17,8 @@ Pre-alpha · v0.0.3（2026-04-26）
 仍未实现：
 - `@adux/generator` 仍是占位包。
 - `adux dev` / `adux generate` CLI 入口尚未实现。
-- 飞书 bot、PR 集成、npm 发布流程尚未实现。
+- 飞书 bot、PR 集成尚未实现。
+- npm 公开 registry 发布尚未实现；**GitHub Release tarball alpha 已打通**（v0.0.4-alpha.0），见下方「Install / Try it」。
 
 - 产品规划与路线图：[`docs/roadmap.md`](docs/roadmap.md)
 - 设计稿：[`docs/design/v2-working.md`](docs/design/v2-working.md)
@@ -25,13 +26,54 @@ Pre-alpha · v0.0.3（2026-04-26）
 - 浏览器 overlay OSS 选型：[`docs/research/runtime-overlay.md`](docs/research/runtime-overlay.md)
 - 完整使用指南（飞书权威 + git 快照）：[`docs/usage-guide.md`](docs/usage-guide.md) · [飞书链接](https://www.feishu.cn/docx/Oc5CdyWvKoY4Arx2KOBcZFAJnbe)
 
+## Install / Try it
+
+> v0.0.4 alpha 阶段通过 GitHub Release tarball 安装，**不需要** npm login，也不需要 `@adux` npm 组织。
+> v0.1 正式版会切到 `npm install @adux/cli`。
+
+最简流程：
+
+```bash
+mkdir adux-tryout && cd adux-tryout
+pnpm init -y
+
+# 装 CLI（已 bundle @adux/core，单个 tgz 即可跑）
+pnpm add -D https://github.com/hxppk/adux/releases/download/v0.0.4-alpha.0/adux-cli-0.0.4-alpha.0.tgz
+
+# 一键审查（项目可以是任意已存在的 antd / vite 项目）
+./node_modules/.bin/adux audit /path/to/your-project --yes
+```
+
+如果想要浏览器实时 overlay（vite 项目）：
+
+```bash
+pnpm add -D \
+  https://github.com/hxppk/adux/releases/download/v0.0.4-alpha.0/adux-vite-plugin-0.0.4-alpha.0.tgz \
+  https://github.com/hxppk/adux/releases/download/v0.0.4-alpha.0/adux-runtime-0.0.4-alpha.0.tgz
+```
+
+并在 `vite.config.ts` 里：
+
+```ts
+import adux from "@adux/vite-plugin";
+
+export default {
+  plugins: [adux()],
+};
+```
+
+> 找最新 tag：[GitHub Releases](https://github.com/hxppk/adux/releases)。
+> 完整发布流程：[`docs/release-checklist.md`](docs/release-checklist.md)。
+
+---
+
 ## Packages
-- `@adux/core` — AST 解析、规则框架、8 条静态规则、reporter、MCP/migration 基础能力。
-- `@adux/cli` — CLI，目前实现 `adux review`。
+- `@adux/core` — AST 解析、规则框架、8 条静态规则、reporter、MCP/migration 基础能力（已被 `@adux/cli` bundle，安装 cli 即可，不必单独装）。
+- `@adux/cli` — CLI 入口，提供 `adux audit / init / review / report / skill`。
 - `@adux/runtime` — 浏览器运行时，基于 Bippy 监听 React commit，输出 runtime violations。
 - `@adux/vite-plugin` — Vite dev 插件，注入 runtime，并提供 open-editor middleware。
-- `@adux/playground` — Vite + React + antd 验证应用。
-- `@adux/generator` — 占位包。
+- `@adux/playground` — Vite + React + antd 验证应用（仓库内部，不发布）。
+- `@adux/generator` — 占位包（不发布）。
 
 ## Usage
 

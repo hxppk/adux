@@ -1,6 +1,6 @@
 # ADUX Roadmap
 
-**当前版本**：v0.0.3（2026-04-26）
+**当前版本**：v0.0.4-alpha.0（2026-04-26）
 **对外使用指南权威版**：[飞书 Oc5CdyWvKoY4Arx2KOBcZFAJnbe](https://www.feishu.cn/docx/Oc5CdyWvKoY4Arx2KOBcZFAJnbe)
 **v0.0.2 用户操作指南**：[飞书 PwELdQhtyopM86xqX7dcMcQvnLe](https://www.feishu.cn/docx/PwELdQhtyopM86xqX7dcMcQvnLe)
 
@@ -111,10 +111,14 @@
 
 ### 低优先级
 
-**R10. npm 公开发布**
-- [ ] 建 CHANGELOG
-- [ ] 发 `@adux/*` pre-release 到 npm
-- [ ] 文档迁到 GitHub Pages
+**R10. 安装链路 / 公开发布** — v0.0.4 alpha 走通 GitHub tarball
+- [x] CLI 用 tsup `noExternal` bundle `@adux/core`，单 tgz 自洽
+- [x] 各发布包统一版本号；CLI version 从 `package.json` 动态读取
+- [x] `pnpm pack:smoke` 端到端：build → pack 各包 → mkdtemp 临时项目 install cli tgz → 跑 `adux audit/skill init/skill import/audit` 全流程
+- [x] `pnpm release:check`：typecheck + tests + pack:smoke 一把验证
+- [x] [`docs/release-checklist.md`](release-checklist.md) 文档化版本 bump / pack / GitHub release / 验证 / rollback
+- [x] README「Install / Try it」章节 + GitHub release tarball URL
+- [ ] **未实现**：CHANGELOG、`@adux/*` 注册到 npm 公开 registry、`pnpm publish -r` 接入 CI、文档迁 GitHub Pages（v0.1 正式版）
 
 **R11. 预览链接常驻服务**
 - [ ] 飞书场景下不用每次跑 Playwright headless

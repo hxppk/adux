@@ -1,7 +1,7 @@
 {
   "name": "adux-monorepo",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.4-alpha.0",
   "description": "ADUX — Ant Design UX Assistant (pm-antd-prototype 升级版)",
   "packageManager": "pnpm@9.10.0",
   "engines": { "node": ">=20.0.0" },
@@ -10,6 +10,8 @@
     "test": "pnpm -r run test",
     "typecheck": "pnpm -r run typecheck",
     "dev": "pnpm -r run dev",
+    "pack:smoke": "node scripts/pack-smoke.mjs",
+    "release:check": "pnpm -r run typecheck && pnpm -r run test && pnpm pack:smoke",
     "clean": "pnpm -r exec rm -rf dist .tsbuildinfo"
   },
   "devDependencies": {

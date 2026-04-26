@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { cac } from "cac";
 import { audit } from "./commands/audit.js";
 import { init } from "./commands/init.js";
@@ -8,6 +9,17 @@ import { skillImport, skillInit } from "./commands/skill.js";
 const cli = cac("adux");
 
 const VALID_FORMATS = ["text", "json", "markdown"] as const;
+
+function packageVersion(): string {
+  try {
+    const pkg = JSON.parse(
+      readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+    ) as { version?: unknown };
+    return typeof pkg.version === "string" ? pkg.version : "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
 
 cli
   .command("audit [dir]", "Run guided ADUX init + report workflow")
@@ -102,5 +114,5 @@ cli
   );
 
 cli.help();
-cli.version("0.0.1");
+cli.version(packageVersion());
 cli.parse();

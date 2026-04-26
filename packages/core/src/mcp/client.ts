@@ -67,6 +67,7 @@ const DEFAULT_ARGS = ["mcp"];
 const DEFAULT_CACHE_SIZE = 500;
 const DEFAULT_CONNECT_TIMEOUT = 5000;
 const DEFAULT_CALL_TIMEOUT = 10000;
+const CLIENT_VERSION = "0.0.4-alpha.0";
 
 function errCode(error: unknown): McpErrorCode {
   if (error instanceof McpError) return error.code;
@@ -181,7 +182,7 @@ export function createMcpClient(opts: McpClientOptions = {}): McpClient {
 
       transport = new StdioClientTransport({ command, args });
       client = new Client(
-        { name: "@adux/core", version: "0.0.1" },
+        { name: "@adux/core", version: CLIENT_VERSION },
         { capabilities: {} },
       );
 
