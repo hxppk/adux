@@ -283,6 +283,7 @@ function configFromDetection(detected: DetectionResult): AduxConfig {
       views: ["designer", "frontend", "developer"],
       screenshots: false,
     },
+    skills: [],
     rules: defaultRulesFor(detected.designSystem.name),
   };
 }

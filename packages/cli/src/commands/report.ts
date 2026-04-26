@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { ReportInput, Violation } from "@adux/core";
+import type { AduxSkillRuleConfig, ReportInput, Violation } from "@adux/core";
 import { collectReview, type ReviewData } from "./review.js";
 
 export interface ReportOptions {
@@ -114,7 +114,11 @@ export async function report(
   ];
   await fs.mkdir(outDir, { recursive: true });
 
-  const issues = await normalizeIssues(data.perFile, issueBase);
+  const issues = await normalizeIssues(
+    data.perFile,
+    issueBase,
+    data.config?.skillRules,
+  );
   const byRule = countIssues(issues, (issue) => issue.ruleId);
   const byFile = countIssues(issues, (issue) => issue.file);
   const byCategory = countIssues(issues, (issue) => issue.rule.category);
@@ -176,6 +180,7 @@ function resolveOutDir(data: ReviewData, outDir?: string): string {
 async function normalizeIssues(
   perFile: ReportInput[],
   issueBase: string,
+  skillRules?: Record<string, AduxSkillRuleConfig>,
 ): Promise<NormalizedIssue[]> {
   const issues: NormalizedIssue[] = [];
   for (const file of perFile) {
@@ -184,7 +189,7 @@ async function normalizeIssues(
       const { line, column } = violation.range.start;
       const relativeFile =
         path.relative(issueBase, file.filename) || path.basename(file.filename);
-      const rule = ruleMeta(violation.ruleId);
+      const rule = ruleMeta(violation.ruleId, skillRules);
       issues.push({
         id: stableIssueId(relativeFile, line, column, violation.ruleId),
         origin: "static",
@@ -403,11 +408,32 @@ function countIssues(
   return counts;
 }
 
-function ruleMeta(ruleId: string): RuleReportMeta {
+function ruleMeta(
+  ruleId: string,
+  skillRules?: Record<string, AduxSkillRuleConfig>,
+): RuleReportMeta {
+  const skill = skillRules?.[ruleId];
   return {
     id: ruleId,
     ...(RULE_HELP[ruleId] ?? defaultHelp()),
+    ...ruleMetaFromSkill(skill),
   };
+}
+
+function ruleMetaFromSkill(
+  skill: AduxSkillRuleConfig | undefined,
+): Partial<Omit<RuleReportMeta, "id">> {
+  if (!skill) return {};
+  const meta = {
+    category: skill.category,
+    description: skill.description,
+    impact: skill.impact,
+    fix: skill.fix,
+    docsUrl: skill.docsUrl,
+  };
+  return Object.fromEntries(
+    Object.entries(meta).filter(([, value]) => value !== undefined),
+  );
 }
 
 function defaultHelp(): Omit<RuleReportMeta, "id"> {
