@@ -141,4 +141,105 @@ describe("adux config", () => {
     ]);
     expect(loaded?.config.rules?.["require-antd-component"]).toBe("error");
   });
+
+  it("merges skills array into config.skillRules and tracks skillSources", async () => {
+    const root = await makeTempDir();
+    await fs.writeFile(
+      path.join(root, "team.skill.cjs"),
+      `module.exports = {
+        name: "team-skill",
+        rules: {
+          "require-antd-component": {
+            severity: "warn",
+            description: "Team override description.",
+            impact: "Team-specific impact note.",
+            fix: "Team-specific fix advice.",
+          },
+        },
+      };`,
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(root, "adux.config.cjs"),
+      `module.exports = { skills: ["./team.skill.cjs"] };`,
+      "utf8",
+    );
+
+    const loaded = await loadAduxConfig({ cwd: root });
+
+    expect(loaded?.config.skills).toEqual(["./team.skill.cjs"]);
+    expect(loaded?.config.skillRules?.["require-antd-component"]).toMatchObject({
+      severity: "warn",
+      description: "Team override description.",
+      fix: "Team-specific fix advice.",
+    });
+    expect(loaded?.config.skillSources).toEqual([
+      path.join(root, "team.skill.cjs"),
+    ]);
+  });
+
+  it("multiple skills: later entry overrides earlier for the same ruleId", async () => {
+    const root = await makeTempDir();
+    await fs.writeFile(
+      path.join(root, "base.skill.cjs"),
+      `module.exports = {
+        rules: {
+          "require-antd-component": { severity: "warn", fix: "base fix" },
+        },
+      };`,
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(root, "override.skill.cjs"),
+      `module.exports = {
+        rules: {
+          "require-antd-component": { severity: "error", fix: "override fix" },
+        },
+      };`,
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(root, "adux.config.cjs"),
+      `module.exports = { skills: ["./base.skill.cjs", "./override.skill.cjs"] };`,
+      "utf8",
+    );
+
+    const loaded = await loadAduxConfig({ cwd: root });
+
+    expect(loaded?.config.skillRules?.["require-antd-component"]).toMatchObject({
+      severity: "error",
+      fix: "override fix",
+    });
+  });
+
+  it("config.rules wins over skill severity at lint time", () => {
+    const violations = lint(
+      `export default function App() { return <button>Save</button>; }`,
+      {
+        skillRules: {
+          "require-antd-component": { severity: "warn" },
+        },
+        rules: {
+          "require-antd-component": "error",
+        },
+      },
+    );
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]!.severity).toBe("error");
+  });
+
+  it("skill rule severity takes effect when config.rules does not override it", () => {
+    const violations = lint(
+      `export default function App() { return <button>Save</button>; }`,
+      {
+        skillRules: {
+          "require-antd-component": { severity: "warn" },
+        },
+      },
+    );
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]!.severity).toBe("warn");
+  });
 });
