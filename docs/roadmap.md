@@ -1,12 +1,68 @@
 # ADUX Roadmap
 
-**当前版本**：v0.0.4-alpha.0（2026-04-26）
+**当前版本**：v0.0.4-alpha.0（2026-04-26，GitHub Release tarball 已发）
+**下一里程碑**：v0.1.0 — 首个 npm public 版（详见下方「🎯 v0.1.0 cut 标准」）
 **对外使用指南权威版**：[飞书 Oc5CdyWvKoY4Arx2KOBcZFAJnbe](https://www.feishu.cn/docx/Oc5CdyWvKoY4Arx2KOBcZFAJnbe)
-**v0.0.2 用户操作指南**：[飞书 PwELdQhtyopM86xqX7dcMcQvnLe](https://www.feishu.cn/docx/PwELdQhtyopM86xqX7dcMcQvnLe)
+**v0.0.2+ 三角色全流程使用指南**：[飞书 wiki TwvGwtaFkiRcz1kBfNxcgvDXnge](https://swn7zpxv453.feishu.cn/wiki/TwvGwtaFkiRcz1kBfNxcgvDXnge)（docx `ZXM7defbMo063Zx1mlwcJf4Cnrh`）
 
 ---
 
-## ✅ 已完成（v0.0.1 alpha）
+## 🎯 v0.1.0 cut 标准（首个 npm public 版）
+
+> v0.0.x 继续以 GitHub Release tarball 发；**v0.1.0 起切到 npm registry**，外部用户安装方式收敛为：
+>
+> ```bash
+> pnpm add -D @adux/cli
+> ```
+>
+> 这条迁移已经写进飞书 wiki：「找最新版本：[GitHub Releases](https://github.com/hxppk/adux/releases)。**v0.1 正式版会切到 npm registry**，那时只需 `pnpm add -D @adux/cli`。」README、release-checklist 与 wiki 三处文案对齐同一句承诺。
+
+> 配图：v0.0.4-alpha → v0.1 npm public 4 阶段发布路径（待补，见 [`docs/release-checklist.md`](release-checklist.md) §8 配图缺口）。
+
+**Blocker（必须落地，不达不发）**
+
+- **R10 npm public 收尾**（从「低优先级」提升为 v0.1 cut 第一 blocker）
+  - changesets + CHANGELOG（每个 PR 自带 changeset，发布即聚合）
+  - 注册 `@adux` npm 组织 + npm token（`NPM_TOKEN` 入 GitHub Secrets）
+  - 4 个 public 包统一加 `publishConfig.access: "public"`、`license`、`repository`、`bugs`、`homepage`、`keywords`
+  - 仓库根 `LICENSE` 文件（与各包 `license` 字段一致）
+  - workspace deps 在 publish 后变真实版本（pnpm publish 自动改写 `workspace:*`）
+  - `pnpm publish -r --access public` 替代 `gh release upload tgz` 作为主路径
+  - GitHub Actions：tag push → typecheck/test/pack:smoke → publish → final GitHub Release
+- **R6 vite-plugin 零配置** — 实现已完成 ✅，**v0.1 必须通过 npm/vite smoke 持续证明保持**：外部用户只装 `@adux/vite-plugin` 不显式装 `@adux/runtime` 时 overlay 仍能跑通；smoke 失败则 v0.1 前需把 runtime 改为 vite-plugin 的 `dependency`，或 bundle/`require.resolve` 到插件包内
+- **CI 安装 smoke**
+  - 现有 `pnpm pack:smoke`（mkdtemp + tarball install）维持
+  - 新增 `npm-install-smoke`：临时项目 `pnpm add -D @adux/cli@<rc>` 后跑 `adux audit . --yes` 通过
+  - 新增 `vite-overlay-smoke`：临时 vite 项目**只装 `@adux/vite-plugin@<rc>`，故意不装 runtime**，dev server 启动后 overlay panel 注入成功（这是 R6 零配置承诺的活体证明）
+- **8 静态规则 + 2 runtime 规则 + config loader** 全绿（136 tests baseline 不退）
+
+**非 blocker（可推到 v0.2+）**
+
+- R1 页面 Overlay 闭环 / R2 一键安全修复 / R4 Runtime 规则扩展 / R5 全站爬虫 / R7 generator / R8 飞书 bot / R9 Claude Code skill / R11 预览常驻服务
+
+**Public vs private 包矩阵**
+
+| 包 | v0.1 npm 行为 |
+|---|---|
+| `@adux/cli` | publish public（已 bundle `@adux/core`，单包自洽） |
+| `@adux/core` | publish public（独立给规则维护者复用） |
+| `@adux/runtime` | publish public（vite-plugin 自动 resolve，用户无需手动装） |
+| `@adux/vite-plugin` | publish public |
+| `@adux/generator` | `private: true`，不发布（v0.2+ 再上） |
+| `@adux/playground` | `private: true`，不发布（仓库内 demo） |
+
+**发布流（v0.1.0 切换后）**
+
+1. PR 合并时附 changeset（`pnpm changeset add`）
+2. release PR 自动聚合 → 升 4 个 public 包版本 + CHANGELOG
+3. tag `v0.1.0` push → CI: install/build/test/typecheck/pack:smoke/npm-install-smoke
+4. CI 跑 `pnpm publish -r --access public`（4 个包同版本）
+5. CI 用 `gh release create v0.1.0 ... --notes-file CHANGELOG.md` 收尾，附 4 个 tgz 作为 npm-down 备份
+6. 飞书 wiki + README + roadmap「当前版本」三处同步更新到 v0.1.0
+
+---
+
+## ✅ 已完成（v0.0.1 → v0.0.4-alpha.0 累计）
 
 ### 静态审查
 
@@ -111,7 +167,7 @@
 
 ### 低优先级
 
-**R10. 安装链路 / 公开发布** — v0.0.4 alpha 走通 GitHub tarball
+**R10. 安装链路 / 公开发布** — v0.0.4 alpha 走通 GitHub tarball；剩余 npm public 项是 [v0.1.0 cut 第一 blocker](#-v010-cut-标准首个-npm-public-版)
 - [x] CLI 用 tsup `noExternal` bundle `@adux/core`，单 tgz 自洽
 - [x] 各发布包统一版本号；CLI version 从 `package.json` 动态读取
 - [x] `pnpm pack:smoke` 端到端：build → pack 各包 → mkdtemp 临时项目 install cli tgz → 跑 `adux audit/skill init/skill import/audit` 全流程

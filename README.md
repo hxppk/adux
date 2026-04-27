@@ -29,7 +29,7 @@ Pre-alpha · v0.0.4-alpha.0（2026-04-26）
 ## Install / Try it
 
 > v0.0.4 alpha 阶段通过 GitHub Release tarball 安装，**不需要** npm login，也不需要 `@adux` npm 组织。
-> v0.1 正式版会切到 `npm install @adux/cli`。
+> 找最新版本：[GitHub Releases](https://github.com/hxppk/adux/releases)。**v0.1 正式版会切到 npm registry**，那时只需 `pnpm add -D @adux/cli`。
 
 最简流程：
 
@@ -62,8 +62,8 @@ export default {
 };
 ```
 
-> 找最新 tag：[GitHub Releases](https://github.com/hxppk/adux/releases)。
 > 完整发布流程：[`docs/release-checklist.md`](docs/release-checklist.md)。
+> v0.1 npm public cut 标准与 blocker：[`docs/roadmap.md`](docs/roadmap.md#-v010-cut-标准首个-npm-public-版)。
 
 ---
 

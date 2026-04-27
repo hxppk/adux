@@ -133,13 +133,97 @@ gh release create v0.0.4-alpha.0 \
 
 ---
 
-## 8. v0.1 正式版迁移路径（未来）
+## 8. v0.1 正式版迁移路径（npm public 切换）
 
-发到 npm 公开 registry 时需补做：
+> 锚定承诺（飞书 wiki + README + roadmap 三处同句）：「找最新版本：[GitHub Releases](https://github.com/hxppk/adux/releases)。**v0.1 正式版会切到 npm registry**，那时只需 `pnpm add -D @adux/cli`。」
+>
+> v0.1.0 cut 全量标准见 [`roadmap.md` 「🎯 v0.1.0 cut 标准」](roadmap.md#-v010-cut-标准首个-npm-public-版)。本节是发布操作侧 checklist。
+
+### 8.1 一次性基建（cut v0.1.0 之前完成）
 
 - [ ] 注册 `@adux` npm 组织 / scope，或换不带 scope 的包名
-- [ ] 各发布包 `package.json` 加 `publishConfig.access: "public"` 和 `publishConfig.tag: "alpha"`（如仍是 alpha）
-- [ ] 各发布包补 `repository / license / author / bugs / homepage / keywords` 字段
-- [ ] 加 `LICENSE` 文件
-- [ ] `pnpm publish -r --access public` 替代 `pnpm pack` + GitHub release 上传
-- [ ] CI 接入（GitHub Actions on tag push → 自动 publish）
+- [ ] 在 npm 生成 publish-only token，加入 GitHub repo secret `NPM_TOKEN`
+- [ ] 4 个 public 包 `package.json` 全部加：
+  - `publishConfig.access: "public"`
+  - `publishConfig.tag: "alpha"`（v0.1.0-rc/alpha 时段；切 stable 后改默认 `latest`）
+  - `repository: { type: "git", url: "https://github.com/hxppk/adux.git", directory: "packages/<name>" }`
+  - `bugs: { url: "https://github.com/hxppk/adux/issues" }`
+  - `homepage: "https://github.com/hxppk/adux#readme"`
+  - `license: "MIT"`（或确认采用的协议）
+  - `author`、`keywords`（antd / lint / design-system / vite / runtime 等）
+- [ ] 仓库根加 `LICENSE` 文件，与各包 `license` 字段一致
+- [ ] 引入 changesets：
+  - `pnpm add -Dw @changesets/cli && pnpm changeset init`
+  - PR 模板要求附 `pnpm changeset add`（CI 缺 changeset 时给 warning）
+  - 配置只对 4 个 public 包发版（`generator` / `playground` 进 ignore）
+- [ ] `generator` / `playground` 在 `package.json` 显式 `"private": true`，避免误发
+
+### 8.2 切换发布流（v0.1.0 起）
+
+- [ ] 新 GitHub Actions workflow `release.yml`：
+  - Trigger：tag `v*` push（或 changesets PR merge）
+  - Steps：checkout → setup node + pnpm → install → typecheck → test → `pnpm pack:smoke` → `pnpm publish -r --access public --no-git-checks` → `gh release create` 收尾（CHANGELOG 内容 + 4 个 tgz 备份）
+- [ ] 验证 dry-run：在 fork / 临时 tag 上跑一次 workflow，确认 publish 步前自动 stop（用 `--dry-run` 或缺 token）
+- [ ] 文档化「npm 走通后 GitHub Release tarball 仍发」决策（用作 npm-down 兜底）
+
+### 8.3 npm install smoke（v0.1.0-rc 阶段）
+
+发 rc 后，在仓库外的临时目录验证 fresh user 视角：
+
+```bash
+mkdir /tmp/adux-npm-smoke && cd /tmp/adux-npm-smoke
+pnpm init -y
+pnpm add -D @adux/cli@<rc-version>
+./node_modules/.bin/adux --version    # → 0.1.0-rc.X
+./node_modules/.bin/adux audit . --yes
+```
+
+vite-plugin overlay（R6 零配置活体证明 — **故意不显式装 `@adux/runtime`**，跑通才算 R6 没退）：
+
+```bash
+pnpm create vite@latest sample -- --template react-ts && cd sample
+pnpm install
+
+# 关键：只装 vite-plugin，不装 runtime（验证 R6 零配置承诺）
+pnpm add -D @adux/vite-plugin@<rc-version>
+# ⚠️ 不要 pnpm add @adux/runtime —— 任何手动 devDep 装 runtime 的指令都不能写进用户文档
+
+# 在 vite.config.ts 加 plugin
+cat > vite.config.ts <<'EOF'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import adux from "@adux/vite-plugin";
+export default defineConfig({ plugins: [react(), adux({ runtime: { debug: true } })] });
+EOF
+
+# 写一个最小违规 App，保证 overlay 一定有命中可显示
+cat > src/App.tsx <<'EOF'
+export default function App() {
+  return (
+    <div style={{ display: "flex", color: "#ff0000", padding: 16 }}>
+      <button>Bare button — should trigger require-antd-component</button>
+    </div>
+  );
+}
+EOF
+
+# 固定 host/port，便于 CI 抓 console / 截图
+pnpm dev --host 127.0.0.1 --port 5173 &
+sleep 5
+
+# 三选一确认 runtime 模块成功加载（任一通过即 smoke 绿）
+# (a) 最轻量：curl 命中 vite virtual module（说明 transformIndexHtml 注入成功）
+curl -sf http://127.0.0.1:5173/ | grep -q "adux-runtime" && echo "[smoke] script tag injected"
+
+# (b) 抓 console：用 Playwright/Puppeteer 打开页面，期望 console 出现 "adux runtime init"（debug=true 时）
+# (c) 抓 panel DOM：document.querySelector('div[data-adux-overlay]') 不为 null
+```
+
+**失败通路诊断**：如果 (a)~(c) 任一失败，**不要**在用户文档里加「请补 `pnpm add -D @adux/runtime`」；这会破坏 R6 承诺。正确动作是 v0.1 前修代码侧——把 `@adux/runtime` 从 vite-plugin 的 `peerDependencies` 改成 `dependencies`，或在 vite-plugin 构建时 `noExternal` bundle 进自身 `dist/`。详见 `roadmap.md` R6 段。
+
+### 8.4 切换后回滚策略
+
+- [ ] 不要 `npm unpublish`（24h 内可，但会破坏已 install 的下游）
+- [ ] 用 `npm deprecate @adux/cli@<bad-version> "use @adux/cli@<next>"` 标 deprecated
+- [ ] 立即发 patch 版本（`pnpm changeset add` → release flow）
+- [ ] GitHub Release tarball 永远保留，作为 npm-down 时的二级安装路径
