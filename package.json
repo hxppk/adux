@@ -3,21 +3,33 @@
   "private": true,
   "version": "0.0.4-alpha.0",
   "description": "ADUX — Ant Design UX Assistant (pm-antd-prototype 升级版)",
+  "license": "MIT",
+  "author": "ADUX contributors",
   "packageManager": "pnpm@9.10.0",
-  "engines": { "node": ">=20.0.0" },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
-    "build": "pnpm -r run build",
-    "test": "pnpm -r run test",
-    "typecheck": "pnpm -r run typecheck",
-    "dev": "pnpm -r run dev",
+    "build": "corepack pnpm -r run build",
+    "test": "corepack pnpm -r run test",
+    "typecheck": "corepack pnpm -r run typecheck",
+    "dev": "corepack pnpm -r run dev",
+    "changeset": "changeset",
+    "version:rc": "changeset pre enter rc && changeset version",
+    "version:stable": "changeset pre exit && changeset version",
+    "verify:release-metadata": "node scripts/verify-release-metadata.mjs",
     "pack:smoke": "node scripts/pack-smoke.mjs",
-    "release:check": "pnpm -r run typecheck && pnpm -r run test && pnpm pack:smoke",
-    "clean": "pnpm -r exec rm -rf dist .tsbuildinfo"
+    "smoke:npm-install": "node scripts/npm-install-smoke.mjs",
+    "smoke:vite-overlay": "node scripts/vite-overlay-smoke.mjs",
+    "release:check": "corepack pnpm verify:release-metadata && corepack pnpm -r run build && corepack pnpm -r run typecheck && corepack pnpm -r run test && corepack pnpm pack:smoke",
+    "release:check:postpublish": "corepack pnpm smoke:npm-install && corepack pnpm smoke:vite-overlay",
+    "clean": "corepack pnpm -r exec rm -rf dist .tsbuildinfo"
   },
   "devDependencies": {
-    "typescript": "^5.6.3",
+    "@changesets/cli": "^2.31.0",
+    "@types/node": "^22.5.0",
     "tsup": "^8.3.0",
-    "vitest": "^2.1.0",
-    "@types/node": "^22.5.0"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.0"
   }
 }

@@ -3,5 +3,6 @@
   "version": "0.0.4-alpha.0",
   "private": true,
   "type": "module",
+  "license": "MIT",
   "description": "ADUX prototype generator — W2 placeholder (will reorganize pm-antd-prototype)"
 }

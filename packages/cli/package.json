@@ -1,7 +1,26 @@
 {
   "name": "@adux/cli",
-  "version": "0.0.4-alpha.0",
+  "version": "0.1.0-rc.0",
   "description": "ADUX command-line interface",
+  "license": "MIT",
+  "author": "ADUX contributors",
+  "homepage": "https://github.com/hxppk/adux#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hxppk/adux.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/hxppk/adux/issues"
+  },
+  "keywords": [
+    "adux",
+    "antd",
+    "design-system",
+    "lint",
+    "cli",
+    "review"
+  ],
   "type": "module",
   "bin": {
     "adux": "./dist/bin.js"
@@ -11,7 +30,7 @@
   ],
   "publishConfig": {
     "access": "public",
-    "tag": "alpha"
+    "tag": "rc"
   },
   "scripts": {
     "build": "tsup",

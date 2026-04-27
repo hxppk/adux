@@ -1,0 +1,15 @@
+{
+  "mode": "pre",
+  "tag": "rc",
+  "initialVersions": {
+    "@adux/playground": "0.0.0",
+    "@adux/cli": "0.0.4-alpha.0",
+    "@adux/core": "0.0.4-alpha.0",
+    "@adux/generator": "0.0.4-alpha.0",
+    "@adux/runtime": "0.0.4-alpha.0",
+    "@adux/vite-plugin": "0.0.4-alpha.0"
+  },
+  "changesets": [
+    "first-npm-release-candidate"
+  ]
+}
