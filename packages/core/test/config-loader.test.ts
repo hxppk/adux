@@ -242,4 +242,45 @@ describe("adux config", () => {
     expect(violations).toHaveLength(1);
     expect(violations[0]!.severity).toBe("warn");
   });
+
+  it("turns off antd-only rules for non-antd design systems", () => {
+    const violations = lint(
+      `export default function App() { return <button style={{ color: "#ff0000" }}>Save</button>; }`,
+      {
+        designSystem: { name: "custom" },
+      },
+    );
+
+    expect(violations.map((violation) => violation.ruleId)).toEqual([
+      "design-token-only",
+    ]);
+  });
+
+  it("tracks skill entries and unknown rule ids", async () => {
+    const root = await makeTempDir();
+    await fs.writeFile(
+      path.join(root, "team.skill.cjs"),
+      `module.exports = {
+        name: "team-skill",
+        rules: {
+          "unknown-rule": { severity: "warn" },
+          "design-token-only": { fix: "team fix" },
+        },
+      };`,
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(root, "adux.config.cjs"),
+      `module.exports = { skills: ["./team.skill.cjs"] };`,
+      "utf8",
+    );
+
+    const loaded = await loadAduxConfig({ cwd: root });
+
+    expect(loaded?.config.skillEntries?.[0]).toMatchObject({
+      path: path.join(root, "team.skill.cjs"),
+      name: "team-skill",
+      unknownRuleIds: ["unknown-rule"],
+    });
+  });
 });

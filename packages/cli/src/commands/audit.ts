@@ -7,6 +7,7 @@ import { report, type ReportResult } from "./report.js";
 export interface AuditOptions {
   yes?: boolean;
   outDir?: string;
+  skillPaths?: string[];
 }
 
 export interface AuditResult {
@@ -48,7 +49,10 @@ export async function audit(
   }
 
   const reportResult = await withCwd(projectDir, () =>
-    report(undefined, { outDir: options.outDir }),
+    report(undefined, {
+      outDir: options.outDir,
+      skillPaths: options.skillPaths,
+    }),
   );
   const artifacts = await auditArtifacts(reportResult.outDir);
 

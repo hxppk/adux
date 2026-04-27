@@ -18,6 +18,7 @@ import {
 
 export interface ReviewOptions {
   format: ReportFormat;
+  skillPaths?: string[];
 }
 
 export interface ReviewSummary {
@@ -80,7 +81,9 @@ export async function review(
   target: string | undefined,
   options: ReviewOptions,
 ): Promise<ReviewResult> {
-  const data = await collectReview(target);
+  const data = await collectReview(target, {
+    skillPaths: options.skillPaths,
+  });
 
   if (data.files.length === 0) {
     return {
@@ -101,16 +104,23 @@ export async function review(
 
   return {
     exitCode: data.summary.totalErrors > 0 ? 1 : 0,
-    output,
+    output:
+      options.format === "json"
+        ? output
+        : `${output}\n\n${activeReviewContext(data).join("\n")}`,
     data,
   };
 }
 
 export async function collectReview(
   target?: string,
+  options: { skillPaths?: string[] } = {},
 ): Promise<ReviewData> {
   const configCwd = await configSearchCwd(target);
-  const loadedConfig = await loadAduxConfig({ cwd: configCwd });
+  const loadedConfig = await loadAduxConfig({
+    cwd: configCwd,
+    skills: options.skillPaths?.map((skillPath) => path.resolve(skillPath)),
+  });
   const config = loadedConfig?.config;
   const configDir = loadedConfig ? path.dirname(loadedConfig.path) : process.cwd();
   const hasExplicitTarget = Boolean(target);
@@ -158,6 +168,27 @@ export async function collectReview(
     configPath: loadedConfig?.path,
     target: reviewTarget,
   };
+}
+
+export function activeReviewContext(data: ReviewData): string[] {
+  const system = data.config?.designSystem?.name ?? "built-in";
+  const preset = data.config?.designSystem?.preset ?? "recommended";
+  const sources = data.config?.skillSources ?? [];
+  return [
+    `Design system: ${system}/${preset}`,
+    `Active skills: ${
+      sources.length > 0
+        ? sources.map((source) => displaySkillPath(source, data)).join(" · ")
+        : "(none — using built-in defaults)"
+    }`,
+  ];
+}
+
+function displaySkillPath(source: string, data: ReviewData): string {
+  const base = data.configPath ? path.dirname(data.configPath) : process.cwd();
+  const relative = path.relative(base, source).replaceAll(path.sep, "/");
+  if (relative.startsWith(".")) return relative;
+  return `./${relative}`;
 }
 
 interface AggregateArgs {

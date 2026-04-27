@@ -1,14 +1,7 @@
 import type { MigrationEntry } from "../migrations/types.js";
 import { RuleRegistry } from "../rules/registry.js";
 import { applyAduxConfig, type AduxConfig } from "./loader.js";
-import { requireAntdComponent } from "../rules/require-antd-component.js";
-import { noOtherDesignSystems } from "../rules/no-other-design-systems.js";
-import { designTokenOnly } from "../rules/design-token-only.js";
-import { useAntdFeedback } from "../rules/use-antd-feedback.js";
-import { useAntdLayout } from "../rules/use-antd-layout.js";
-import { useAntdIcons } from "../rules/use-antd-icons.js";
-import { useFormItemRules } from "../rules/use-form-item-rules.js";
-import { noDeprecatedApi } from "../rules/no-deprecated-api.js";
+import { ANTD_ONLY_RULE_IDS, BUILT_IN_RULES } from "../rules/builtin.js";
 
 export interface DefaultRegistryOptions {
   /** Migration entries from `antd migrate` for no-deprecated-api. */
@@ -24,15 +17,17 @@ export interface DefaultRegistryOptions {
 export function createDefaultRegistry(
   opts: DefaultRegistryOptions = {},
 ): RuleRegistry {
-  const reg = new RuleRegistry()
-    .register(requireAntdComponent)
-    .register(noOtherDesignSystems)
-    .register(designTokenOnly)
-    .register(useAntdFeedback)
-    .register(useAntdLayout)
-    .register(useAntdIcons)
-    .register(useFormItemRules)
-    .register(noDeprecatedApi);
+  const reg = new RuleRegistry();
+  for (const rule of BUILT_IN_RULES) reg.register(rule);
+
+  if (
+    opts.config?.designSystem?.name &&
+    opts.config.designSystem.name !== "antd"
+  ) {
+    for (const id of ANTD_ONLY_RULE_IDS) {
+      reg.override(id, { severity: "off" });
+    }
+  }
 
   if (opts.migrations && opts.migrations.length > 0) {
     reg.override("no-deprecated-api", {

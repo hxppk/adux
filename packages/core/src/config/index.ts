@@ -11,6 +11,7 @@ export {
   type AduxReportsConfig,
   type AduxRuleConfig,
   type AduxRuntimeConfig,
+  type AduxSkillEntry,
   type AduxRuntimeVia,
   type AduxSkillConfig,
   type AduxSkillRuleConfig,

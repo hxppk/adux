@@ -95,6 +95,7 @@ describe("adux init", () => {
     const written = await fs.readFile(expectedConfig, "utf8");
     expect(written).toContain("module.exports =");
     expect(written).toContain('"name": "antd"');
+    expect(written).toContain("designSystem.skill is metadata only");
   });
 
   it("declines to overwrite an existing adux.config.cjs without --force", async () => {

@@ -1,7 +1,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { findAduxConfig, type AduxConfig, type AduxSkillConfig } from "@adux/core";
+import {
+  BUILT_IN_RULE_IDS,
+  findAduxConfig,
+  loadAduxConfig,
+  type AduxConfig,
+  type AduxSkillConfig,
+  type AduxSkillEntry,
+} from "@adux/core";
 
 export interface SkillInitOptions {
   force?: boolean;
@@ -18,6 +25,12 @@ export interface SkillCommandResult {
   configPath?: string;
   configUpdated?: boolean;
   skill?: AduxSkillConfig;
+  warnings?: string[];
+}
+
+export interface SkillListOptions {
+  json?: boolean;
+  cwd?: string;
 }
 
 const DEFAULT_GUIDELINES_FILE = "design-guidelines.md";
@@ -64,6 +77,7 @@ export async function skillImport(
   const outPath = path.resolve(options.out ?? DEFAULT_SKILL_FILE);
   const markdown = await fs.readFile(sourcePath, "utf8");
   const skill = parseSkillMarkdown(markdown);
+  const warnings = unknownRuleWarnings(Object.keys(skill.rules ?? {}));
 
   await fs.mkdir(path.dirname(outPath), { recursive: true });
   await fs.writeFile(outPath, renderSkillConfig(skill), "utf8");
@@ -76,6 +90,7 @@ export async function skillImport(
     skill,
     configPath: configUpdate?.configPath,
     configUpdated: configUpdate?.updated,
+    warnings,
     output: [
       `Created ${outPath}`,
       configUpdate
@@ -83,11 +98,72 @@ export async function skillImport(
           ? `Updated ${configUpdate.configPath}: added ${configUpdate.skillPath}`
           : `${configUpdate.configPath} already includes ${configUpdate.skillPath}`
         : "No ADUX config found. Run adux init first, then add this file to skills.",
+      ...renderWarnings(warnings),
       "",
       "Next steps:",
       "  adux audit . --yes",
     ].join("\n"),
   };
+}
+
+export async function skillList(
+  options: SkillListOptions = {},
+): Promise<{ output: string; exitCode: number }> {
+  const loaded = await loadAduxConfig({ cwd: options.cwd ?? process.cwd() });
+  if (!loaded) {
+    return {
+      exitCode: 1,
+      output: "No ADUX config found. Run adux init first.",
+    };
+  }
+
+  const entries = loaded.config.skillEntries ?? [];
+  if (options.json) {
+    return {
+      exitCode: 0,
+      output: JSON.stringify(
+        {
+          configPath: loaded.path,
+          designSystem: designSystemLabel(loaded.config),
+          skills: entries.map(skillEntryJson),
+        },
+        null,
+        2,
+      ),
+    };
+  }
+
+  const lines = [
+    "ADUX skill list",
+    `Config: ${loaded.path}`,
+    `Design system: ${designSystemLabel(loaded.config)}`,
+  ];
+  if (entries.length === 0) {
+    lines.push("Active skills: (none — using built-in defaults)");
+    return { exitCode: 0, output: lines.join("\n") };
+  }
+
+  lines.push("Active skills:");
+  for (const entry of entries) {
+    lines.push(
+      `- ${relativeSkillPath(path.dirname(loaded.path), entry.path)}${entry.name ? ` (${entry.name})` : ""}`,
+    );
+    const ruleEntries = Object.entries(entry.rules);
+    if (ruleEntries.length === 0) {
+      lines.push("  rules: (none)");
+    } else {
+      for (const [ruleId, rule] of ruleEntries) {
+        const fields = Object.keys(rule).sort();
+        lines.push(
+          `  - ${ruleId}: ${fields.length > 0 ? fields.join(", ") : "(no fields)"}`,
+        );
+      }
+    }
+    for (const warning of unknownRuleWarnings(entry.unknownRuleIds)) {
+      lines.push(`  warning: ${warning}`);
+    }
+  }
+  return { exitCode: 0, output: lines.join("\n") };
 }
 
 function parseSkillMarkdown(source: string): AduxSkillConfig {
@@ -272,6 +348,72 @@ function isSeverity(value: unknown): value is "error" | "warn" | "off" {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function designSystemLabel(config: AduxConfig): string {
+  const system = config.designSystem?.name ?? "built-in";
+  const preset = config.designSystem?.preset ?? "recommended";
+  return `${system}/${preset}`;
+}
+
+function skillEntryJson(entry: AduxSkillEntry) {
+  return {
+    path: entry.path,
+    name: entry.name,
+    version: entry.version,
+    designSystem: entry.designSystem,
+    rules: Object.fromEntries(
+      Object.entries(entry.rules).map(([ruleId, rule]) => [
+        ruleId,
+        Object.keys(rule).sort(),
+      ]),
+    ),
+    warnings: unknownRuleWarnings(entry.unknownRuleIds),
+  };
+}
+
+function renderWarnings(warnings: string[]): string[] {
+  if (warnings.length === 0) return [];
+  return ["", "Warnings:", ...warnings.map((warning) => `- ${warning}`)];
+}
+
+function unknownRuleWarnings(ruleIds: string[]): string[] {
+  return ruleIds
+    .filter((ruleId) => !BUILT_IN_RULE_IDS.includes(ruleId))
+    .map((ruleId) => {
+      const suggestion = closestRuleId(ruleId);
+      return suggestion
+        ? `Unknown rule-id "${ruleId}". Did you mean "${suggestion}"?`
+        : `Unknown rule-id "${ruleId}".`;
+    });
+}
+
+function closestRuleId(ruleId: string): string | undefined {
+  let best: { id: string; distance: number } | undefined;
+  for (const id of BUILT_IN_RULE_IDS) {
+    const distance = levenshtein(ruleId, id);
+    if (!best || distance < best.distance) best = { id, distance };
+  }
+  if (!best) return undefined;
+  return best.distance <= Math.max(4, Math.floor(ruleId.length / 3))
+    ? best.id
+    : undefined;
+}
+
+function levenshtein(a: string, b: string): number {
+  const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j += 1) {
+      current[j] = Math.min(
+        current[j - 1]! + 1,
+        previous[j]! + 1,
+        previous[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+    previous.splice(0, previous.length, ...current);
+  }
+  return previous[b.length]!;
 }
 
 const DESIGN_GUIDELINES_TEMPLATE = `# ADUX Design Skill

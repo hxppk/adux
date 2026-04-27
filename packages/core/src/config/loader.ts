@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { BUILT_IN_RULE_IDS } from "../rules/builtin.js";
 import type { RuleOverride, RuleRegistry } from "../rules/registry.js";
 import type { RuleSeverity } from "../rules/types.js";
 
@@ -29,6 +30,7 @@ export interface AduxDesignSystemConfig {
   name?: string;
   version?: string;
   adapter?: string;
+  /** @deprecated Metadata only. Review skills live in config.skills. */
   skill?: string;
   preset?: string;
 }
@@ -78,6 +80,15 @@ export interface AduxSkillConfig {
   rules?: Record<string, AduxSkillRuleConfig>;
 }
 
+export interface AduxSkillEntry {
+  path: string;
+  name?: string;
+  version?: string | number;
+  designSystem?: string | AduxDesignSystemConfig;
+  rules: Record<string, AduxSkillRuleConfig>;
+  unknownRuleIds: string[];
+}
+
 export interface AduxConfig {
   meta?: AduxConfigMeta;
   designSystem?: AduxDesignSystemConfig;
@@ -87,6 +98,7 @@ export interface AduxConfig {
   skills?: string[];
   skillRules?: Record<string, AduxSkillRuleConfig>;
   skillSources?: string[];
+  skillEntries?: AduxSkillEntry[];
   rules?: Record<string, AduxRuleConfig>;
 }
 
@@ -97,6 +109,7 @@ export interface LoadedAduxConfig {
 
 export interface LoadAduxConfigOptions {
   cwd?: string;
+  skills?: string[];
 }
 
 export async function findAduxConfig(
@@ -126,7 +139,20 @@ export async function loadAduxConfig(
   const rawConfig = configPath.endsWith(".json")
     ? JSON.parse(await fs.readFile(configPath, "utf8"))
     : await importConfig(configPath);
-  const config = normalizeConfig(rawConfig);
+  let config = normalizeConfig(rawConfig);
+  if (options.skills && options.skills.length > 0) {
+    config = {
+      ...config,
+      skills: options.skills.map((skillPath) =>
+        path.isAbsolute(skillPath)
+          ? skillPath
+          : path.resolve(options.cwd ?? process.cwd(), skillPath),
+      ),
+      skillRules: undefined,
+      skillSources: undefined,
+      skillEntries: undefined,
+    };
+  }
 
   return {
     path: configPath,
@@ -275,6 +301,7 @@ async function withSkillConfigs(
     ...(config.skillRules ?? {}),
   };
   const skillSources: string[] = [...(config.skillSources ?? [])];
+  const skillEntries: AduxSkillEntry[] = [...(config.skillEntries ?? [])];
 
   for (const skillPath of config.skills) {
     const resolved = path.isAbsolute(skillPath)
@@ -284,14 +311,26 @@ async function withSkillConfigs(
       ? JSON.parse(await fs.readFile(resolved, "utf8"))
       : await importConfig(resolved);
     const skill = normalizeSkillConfig(rawSkill);
-    Object.assign(skillRules, skill.rules);
+    const rules = skill.rules ?? {};
+    Object.assign(skillRules, rules);
     skillSources.push(resolved);
+    skillEntries.push({
+      path: resolved,
+      name: skill.name,
+      version: skill.version,
+      designSystem: skill.designSystem,
+      rules,
+      unknownRuleIds: Object.keys(rules).filter(
+        (id) => !BUILT_IN_RULE_IDS.includes(id),
+      ),
+    });
   }
 
   return {
     ...config,
     skillRules: Object.keys(skillRules).length > 0 ? skillRules : undefined,
     skillSources: skillSources.length > 0 ? skillSources : undefined,
+    skillEntries: skillEntries.length > 0 ? skillEntries : undefined,
   };
 }
 
@@ -328,7 +367,7 @@ function normalizeSkillRules(
 function normalizeSkillRule(
   value: Record<string, unknown>,
 ): AduxSkillRuleConfig {
-  return {
+  const rule: AduxSkillRuleConfig = {
     severity: isSeverity(value.severity) ? value.severity : undefined,
     category: typeof value.category === "string" ? value.category : undefined,
     description:
@@ -338,6 +377,9 @@ function normalizeSkillRule(
     docsUrl: typeof value.docsUrl === "string" ? value.docsUrl : undefined,
     options: isRecord(value.options) ? value.options : undefined,
   };
+  return Object.fromEntries(
+    Object.entries(rule).filter(([, entryValue]) => entryValue !== undefined),
+  ) as AduxSkillRuleConfig;
 }
 
 function normalizeSkillRuleOverride(
