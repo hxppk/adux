@@ -28,10 +28,10 @@ try {
   await mkdir(path.join(appDir, "src"), { recursive: true });
 
   const version = await packageVersion("cli");
-  await run("pnpm", ["-r", "run", "build"], { cwd: repoRoot });
+  await runPnpm(["-r", "run", "build"], { cwd: repoRoot });
 
   for (const pkg of packages) {
-    await run("pnpm", ["pack", "--pack-destination", packDir], {
+    await runPnpm(["pack", "--pack-destination", packDir], {
       cwd: path.join(repoRoot, "packages", pkg),
     });
   }
@@ -48,7 +48,7 @@ try {
     private: true,
     type: "module",
   });
-  await run("pnpm", [
+  await runPnpm([
     "add",
     "-D",
     cliTgz,
@@ -110,7 +110,20 @@ try {
     throw new Error("Expected skill import to add ./adux.skill.cjs to config");
   }
 
-  await run("pnpm", [
+  const appManifest = JSON.parse(
+    await readFile(path.join(appDir, "package.json"), "utf8"),
+  );
+  await writeJson(path.join(appDir, "package.json"), {
+    ...appManifest,
+    pnpm: {
+      ...(appManifest.pnpm ?? {}),
+      overrides: {
+        ...(appManifest.pnpm?.overrides ?? {}),
+        "@adux/runtime": `file:${runtimeTgz}`,
+      },
+    },
+  });
+  await runPnpm([
     "add",
     "-D",
     coreTgz,
@@ -202,4 +215,8 @@ function run(command, args, options = {}) {
       );
     });
   });
+}
+
+function runPnpm(args, options = {}) {
+  return run("corepack", ["pnpm", ...args], options);
 }

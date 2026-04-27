@@ -1,7 +1,26 @@
 {
   "name": "@adux/runtime",
-  "version": "0.0.4-alpha.0",
+  "version": "0.1.0-rc.0",
   "description": "ADUX browser runtime — overlay violations on real UI (Shadow DOM + Canvas + Preact)",
+  "license": "MIT",
+  "author": "ADUX contributors",
+  "homepage": "https://github.com/hxppk/adux#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hxppk/adux.git",
+    "directory": "packages/runtime"
+  },
+  "bugs": {
+    "url": "https://github.com/hxppk/adux/issues"
+  },
+  "keywords": [
+    "adux",
+    "antd",
+    "design-system",
+    "runtime",
+    "overlay",
+    "react"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,7 +35,7 @@
   ],
   "publishConfig": {
     "access": "public",
-    "tag": "alpha"
+    "tag": "rc"
   },
   "scripts": {
     "build": "tsup",

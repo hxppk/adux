@@ -1,0 +1,100 @@
+name: npm publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version already committed in package.json, e.g. 0.1.0-rc.0"
+        required: true
+      dist_tag:
+        description: "npm dist-tag to publish"
+        required: true
+        default: "rc"
+        type: choice
+        options:
+          - rc
+          - latest
+      publish:
+        description: "Actually publish to npm. Leave false for dry-run validation."
+        required: true
+        default: false
+        type: boolean
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_REF: ${{ inputs.version || github.ref_name }}
+      DIST_TAG_INPUT: ${{ inputs.dist_tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Normalize release inputs
+        run: |
+          version="${RELEASE_REF#v}"
+          if [ -n "$DIST_TAG_INPUT" ]; then
+            dist_tag="$DIST_TAG_INPUT"
+          elif [[ "$version" == *-rc.* ]]; then
+            dist_tag="rc"
+          else
+            dist_tag="latest"
+          fi
+          echo "ADUX_RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "ADUX_DIST_TAG=$dist_tag" >> "$GITHUB_ENV"
+
+      - name: Verify release version
+        run: node scripts/verify-release-version.mjs "$ADUX_RELEASE_VERSION"
+
+      - name: Pre-publish checks
+        run: pnpm release:check
+
+      - name: Pack release artifacts
+        run: |
+          mkdir -p release-artifacts
+          for pkg in cli core runtime vite-plugin; do
+            (cd "packages/$pkg" && pnpm pack --pack-destination "$GITHUB_WORKSPACE/release-artifacts")
+          done
+
+      - name: Dry-run publish
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == false }}
+        run: pnpm publish -r --access public --tag "$ADUX_DIST_TAG" --no-git-checks --dry-run
+
+      - name: Publish to npm
+        if: ${{ github.event_name == 'push' || inputs.publish == true }}
+        run: pnpm publish -r --access public --tag "$ADUX_DIST_TAG" --no-git-checks
+
+      - name: Post-publish npm smoke
+        if: ${{ github.event_name == 'push' || inputs.publish == true }}
+        env:
+          ADUX_NPM_VERSION: ${{ env.ADUX_RELEASE_VERSION }}
+        run: pnpm release:check:postpublish
+
+      - name: Create GitHub Release
+        if: ${{ github.event_name == 'push' || inputs.publish == true }}
+        run: |
+          tag="v$ADUX_RELEASE_VERSION"
+          gh release create "$tag" \
+            --title "$tag" \
+            --notes "ADUX $tag npm release. See CHANGELOG files for package details." \
+            release-artifacts/*.tgz

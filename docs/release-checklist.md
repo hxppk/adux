@@ -141,34 +141,45 @@ gh release create v0.0.4-alpha.0 \
 
 ### 8.1 一次性基建（cut v0.1.0 之前完成）
 
-- [ ] 注册 `@adux` npm 组织 / scope，或换不带 scope 的包名
+- [ ] 注册 `@adux` npm 组织 / scope，或换不带 scope 的包名（2026-04-27 已确认 registry 当前无公开占用）
 - [ ] 在 npm 生成 publish-only token，加入 GitHub repo secret `NPM_TOKEN`
-- [ ] 4 个 public 包 `package.json` 全部加：
+- [x] 4 个 public 包 `package.json` 全部加：
   - `publishConfig.access: "public"`
-  - `publishConfig.tag: "alpha"`（v0.1.0-rc/alpha 时段；切 stable 后改默认 `latest`）
+  - `publishConfig.tag: "rc"`（v0.1.0-rc 时段；stable 发布由 workflow 显式传 `--tag latest`）
   - `repository: { type: "git", url: "https://github.com/hxppk/adux.git", directory: "packages/<name>" }`
   - `bugs: { url: "https://github.com/hxppk/adux/issues" }`
   - `homepage: "https://github.com/hxppk/adux#readme"`
   - `license: "MIT"`（或确认采用的协议）
   - `author`、`keywords`（antd / lint / design-system / vite / runtime 等）
-- [ ] 仓库根加 `LICENSE` 文件，与各包 `license` 字段一致
-- [ ] 引入 changesets：
-  - `pnpm add -Dw @changesets/cli && pnpm changeset init`
-  - PR 模板要求附 `pnpm changeset add`（CI 缺 changeset 时给 warning）
+- [x] 仓库根加 `LICENSE` 文件，与各包 `license` 字段一致
+- [x] 引入 changesets：
+  - `corepack pnpm add -Dw @changesets/cli`
   - 配置只对 4 个 public 包发版（`generator` / `playground` 进 ignore）
-- [ ] `generator` / `playground` 在 `package.json` 显式 `"private": true`，避免误发
+  - rc 节点走 `corepack pnpm version:rc`，stable 节点走 `corepack pnpm version:stable`
+- [ ] PR 模板要求附 `pnpm changeset add`（CI 缺 changeset 时给 warning）
+- [x] `generator` / `playground` 在 `package.json` 显式 `"private": true`，避免误发
 
 ### 8.2 切换发布流（v0.1.0 起）
 
-- [ ] 新 GitHub Actions workflow `release.yml`：
-  - Trigger：tag `v*` push（或 changesets PR merge）
-  - Steps：checkout → setup node + pnpm → install → typecheck → test → `pnpm pack:smoke` → `pnpm publish -r --access public --no-git-checks` → `gh release create` 收尾（CHANGELOG 内容 + 4 个 tgz 备份）
-- [ ] 验证 dry-run：在 fork / 临时 tag 上跑一次 workflow，确认 publish 步前自动 stop（用 `--dry-run` 或缺 token）
+- [x] 新 GitHub Actions workflow `.github/workflows/npm-publish.yml`：
+  - Trigger：`workflow_dispatch`（dry-run / publish 手动切换）+ tag `v*` push
+  - Steps：checkout → setup node + pnpm → install → `pnpm release:check` → pack 4 个 tgz → `pnpm publish -r --access public --tag <rc|latest> --no-git-checks` → post-publish smoke → `gh release create`
+- [x] 本地 dry-run：`corepack pnpm publish -r --access public --tag rc --no-git-checks --dry-run`
+  - 期望发布列表只包含 `@adux/core` / `@adux/runtime` / `@adux/cli` / `@adux/vite-plugin`
+  - 期望版本为 `0.1.0-rc.0`，dist-tag 为 `rc`，access 为 `public`
+- [ ] 在 GitHub Actions 跑一次 workflow dry-run（`publish=false`），确认 CI 环境输出一致
+- [ ] `NPM_TOKEN` 就绪后发布 `0.1.0-rc.0` 到 `rc` tag，并跑 post-publish smoke
 - [ ] 文档化「npm 走通后 GitHub Release tarball 仍发」决策（用作 npm-down 兜底）
 
 ### 8.3 npm install smoke（v0.1.0-rc 阶段）
 
 发 rc 后，在仓库外的临时目录验证 fresh user 视角：
+
+```bash
+ADUX_NPM_VERSION=<rc-version> corepack pnpm release:check:postpublish
+```
+
+该脚本会执行下面两组 smoke。需要手工复核时按分步命令跑：
 
 ```bash
 mkdir /tmp/adux-npm-smoke && cd /tmp/adux-npm-smoke

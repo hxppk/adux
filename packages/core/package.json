@@ -1,7 +1,26 @@
 {
   "name": "@adux/core",
-  "version": "0.0.4-alpha.0",
+  "version": "0.1.0-rc.0",
   "description": "ADUX core engine — MCP client, AST parser, rule framework",
+  "license": "MIT",
+  "author": "ADUX contributors",
+  "homepage": "https://github.com/hxppk/adux#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hxppk/adux.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/hxppk/adux/issues"
+  },
+  "keywords": [
+    "adux",
+    "antd",
+    "design-system",
+    "lint",
+    "rules",
+    "ast"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,10 +42,12 @@
       "import": "./dist/rules/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "publishConfig": {
     "access": "public",
-    "tag": "alpha"
+    "tag": "rc"
   },
   "scripts": {
     "build": "tsup",
