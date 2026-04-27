@@ -1,16 +1,22 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { AduxSkillRuleConfig, ReportInput, Violation } from "@adux/core";
-import { collectReview, type ReviewData } from "./review.js";
+import {
+  activeReviewContext,
+  collectReview,
+  type ReviewData,
+} from "./review.js";
 
 export interface ReportOptions {
   outDir?: string;
+  skillPaths?: string[];
 }
 
 export interface ReportResult {
   exitCode: number;
   outDir: string;
   output: string;
+  data: ReviewData;
 }
 
 interface NormalizedIssue {
@@ -104,7 +110,9 @@ export async function report(
   target: string | undefined,
   options: ReportOptions = {},
 ): Promise<ReportResult> {
-  const data = await collectReview(target);
+  const data = await collectReview(target, {
+    skillPaths: options.skillPaths,
+  });
   const outDir = resolveOutDir(data, options.outDir);
   const issueBase = await resolveIssueBase(data);
   const views = data.config?.reports?.views ?? [
@@ -136,6 +144,7 @@ export async function report(
         configPath: data.configPath,
         target: data.target,
         designSystem: data.config?.designSystem,
+        skillSources: data.config?.skillSources ?? [],
         issues,
       },
       null,
@@ -167,7 +176,10 @@ export async function report(
     output: [
       `ADUX 报告已生成到 ${outDir}`,
       ...written.map((file) => `- ${file}`),
+      "",
+      ...activeReviewContext(data),
     ].join("\n"),
+    data,
   };
 }
 

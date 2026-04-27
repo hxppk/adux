@@ -4,7 +4,7 @@ import { audit } from "./commands/audit.js";
 import { init } from "./commands/init.js";
 import { report } from "./commands/report.js";
 import { review } from "./commands/review.js";
-import { skillImport, skillInit } from "./commands/skill.js";
+import { skillImport, skillInit, skillList } from "./commands/skill.js";
 
 const cli = cac("adux");
 
@@ -25,14 +25,20 @@ cli
   .command("audit [dir]", "Run guided ADUX init + report workflow")
   .option("-y, --yes", "Accept detected defaults when creating config")
   .option("--out-dir <dir>", "Output directory for report artifacts")
+  .option("--skill <file>", "Temporarily use a review skill file instead of config.skills")
   .action(
     async (
       targetDir: string | undefined,
-      opts: { yes?: boolean; outDir?: string },
+      opts: {
+        yes?: boolean;
+        outDir?: string;
+        skill?: string | string[];
+      },
     ) => {
       const { exitCode, output } = await audit(targetDir, {
         yes: opts.yes,
         outDir: opts.outDir,
+        skillPaths: optionList(opts.skill),
       });
       process.stdout.write(output + "\n");
       process.exit(exitCode);
@@ -59,11 +65,21 @@ cli
   .option("--format <format>", "Output format: text | json | markdown", {
     default: "text",
   })
-  .action(async (targetPath: string | undefined, opts: { format: string }) => {
+  .option("--skill <file>", "Temporarily use a review skill file instead of config.skills")
+  .action(async (
+    targetPath: string | undefined,
+    opts: {
+      format: string;
+      skill?: string | string[];
+    },
+  ) => {
     const format = (VALID_FORMATS as readonly string[]).includes(opts.format)
       ? (opts.format as (typeof VALID_FORMATS)[number])
       : "text";
-    const { exitCode, output } = await review(targetPath, { format });
+    const { exitCode, output } = await review(targetPath, {
+      format,
+      skillPaths: optionList(opts.skill),
+    });
     process.stdout.write(output + "\n");
     process.exit(exitCode);
   });
@@ -71,10 +87,18 @@ cli
 cli
   .command("report [path]", "Create role-aware ADUX report artifacts")
   .option("--out-dir <dir>", "Output directory for report artifacts")
+  .option("--skill <file>", "Temporarily use a review skill file instead of config.skills")
   .action(
-    async (targetPath: string | undefined, opts: { outDir?: string }) => {
+    async (
+      targetPath: string | undefined,
+      opts: {
+        outDir?: string;
+        skill?: string | string[];
+      },
+    ) => {
       const { exitCode, output } = await report(targetPath, {
         outDir: opts.outDir,
+        skillPaths: optionList(opts.skill),
       });
       process.stdout.write(output + "\n");
       process.exit(exitCode);
@@ -87,11 +111,12 @@ cli
   .option("--out <file>", "Output skill config file", {
     default: "adux.skill.cjs",
   })
+  .option("--json", "Print machine-readable output for adux skill list")
   .action(
     async (
       action: string,
       file: string | undefined,
-      opts: { force?: boolean; out?: string },
+      opts: { force?: boolean; out?: string; json?: boolean },
     ) => {
       if (action === "init") {
         const result = await skillInit(file, { force: opts.force });
@@ -107,8 +132,15 @@ cli
         process.stdout.write(result.output + "\n");
         return;
       }
+      if (action === "list") {
+        const result = await skillList({ json: opts.json });
+        process.stdout.write(result.output + "\n");
+        process.exit(result.exitCode);
+      }
       process.stderr.write(`Unknown skill action: ${action}\n`);
-      process.stderr.write("Use: adux skill init [file] or adux skill import <file>\n");
+      process.stderr.write(
+        "Use: adux skill init [file], adux skill import <file>, or adux skill list\n",
+      );
       process.exit(1);
     },
   );
@@ -116,3 +148,8 @@ cli
 cli.help();
 cli.version(packageVersion());
 cli.parse();
+
+function optionList(value: string | string[] | undefined): string[] | undefined {
+  if (!value) return undefined;
+  return Array.isArray(value) ? value : [value];
+}

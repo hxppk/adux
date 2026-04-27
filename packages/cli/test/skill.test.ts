@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { skillInit, skillImport } from "../src/commands/skill.js";
+import { skillInit, skillImport, skillList } from "../src/commands/skill.js";
 
 const tempDirs: string[] = [];
 
@@ -200,5 +200,66 @@ describe("adux skill import", () => {
     await expect(
       withCwd(dir, () => skillImport("empty.md", { out: "adux.skill.cjs" })),
     ).rejects.toThrow(/No skill rules found/);
+  });
+
+  it("warns when Markdown references an unknown rule id", async () => {
+    const dir = await makeTempDir();
+    await fs.writeFile(
+      path.join(dir, "guidelines.md"),
+      `# Team Skill\n\n## require-ant-component\n\n- severity: warn\n- fix: typo\n`,
+      "utf8",
+    );
+
+    const result = await withCwd(dir, () =>
+      skillImport("guidelines.md", { out: "adux.skill.cjs" }),
+    );
+
+    expect(result.warnings).toEqual([
+      'Unknown rule-id "require-ant-component". Did you mean "require-antd-component"?',
+    ]);
+    expect(result.output).toContain("Warnings:");
+    expect(result.output).toContain("require-antd-component");
+  });
+
+  it("lists active skills and covered fields", async () => {
+    const dir = await makeTempDir();
+    await fs.writeFile(
+      path.join(dir, "adux.config.cjs"),
+      `module.exports = { designSystem: { name: "antd" }, skills: ["./team.skill.cjs"] };\n`,
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(dir, "team.skill.cjs"),
+      `module.exports = {
+        name: "team-skill",
+        rules: {
+          "require-antd-component": { severity: "warn", fix: "team fix" },
+        },
+      };\n`,
+      "utf8",
+    );
+
+    const result = await skillList({ cwd: dir });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain("ADUX skill list");
+    expect(result.output).toContain("Design system: antd/recommended");
+    expect(result.output).toContain("./team.skill.cjs (team-skill)");
+    expect(result.output).toContain("require-antd-component: fix, severity");
+  });
+
+  it("lists built-in defaults when no skills are configured", async () => {
+    const dir = await makeTempDir();
+    await fs.writeFile(
+      path.join(dir, "adux.config.cjs"),
+      `module.exports = { designSystem: { name: "antd" } };\n`,
+      "utf8",
+    );
+
+    const result = await skillList({ cwd: dir });
+
+    expect(result.output).toContain(
+      "Active skills: (none — using built-in defaults)",
+    );
   });
 });

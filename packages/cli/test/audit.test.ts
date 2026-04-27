@@ -22,6 +22,17 @@ const ANTD_CONFIG = `module.exports = {
 };
 `;
 
+const SAMPLE_SKILL = `module.exports = {
+  name: "audit-skill",
+  rules: {
+    "require-antd-component": {
+      severity: "warn",
+      fix: "Use Button.",
+    },
+  },
+};
+`;
+
 async function makeProject({
   withConfig = false,
   withSource = true,
@@ -120,6 +131,9 @@ describe("adux audit", () => {
     expect(result.output).toContain(
       "分步命令仍可使用：adux init / adux review / adux report",
     );
+    expect(result.output).toContain(
+      "Active skills: (none — using built-in defaults)",
+    );
   });
 
   it("existing config: guide says 使用已有 instead of 已创建", async () => {
@@ -151,5 +165,34 @@ describe("adux audit", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.initialized).toBe(true);
+  });
+
+  it("--skill temporarily uses the provided review skill", async () => {
+    const dir = await makeProject({ withConfig: true });
+    await fs.writeFile(
+      path.join(dir, "adux.config.cjs"),
+      ANTD_CONFIG.replace(
+        '  rules: { "require-antd-component": "error" },\n',
+        "",
+      ),
+      "utf8",
+    );
+    await fs.writeFile(path.join(dir, "team.skill.cjs"), SAMPLE_SKILL, "utf8");
+
+    const result = await audit(dir, {
+      yes: true,
+      skillPaths: ["./team.skill.cjs"],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain("Active skills: ./team.skill.cjs");
+    const issues = JSON.parse(
+      await fs.readFile(path.join(result.outDir!, "issues.json"), "utf8"),
+    );
+    expect(issues.skillSources).toEqual([
+      await fs.realpath(path.join(dir, "team.skill.cjs")),
+    ]);
+    expect(issues.summary.totalWarns).toBeGreaterThanOrEqual(1);
+    expect(issues.summary.totalErrors).toBe(0);
   });
 });

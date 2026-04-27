@@ -306,6 +306,7 @@ function defaultRulesFor(
 
 function renderConfig(config: AduxConfig): string {
   return `/** @type {import("@adux/core").AduxConfig} */
+// designSystem.skill is metadata only. Review skills are loaded from top-level skills: [].
 module.exports = ${formatObject(config)};
 `;
 }

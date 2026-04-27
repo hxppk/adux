@@ -1,3 +1,4 @@
+export * from "./builtin.js";
 export * from "./types.js";
 export * from "./registry.js";
 export { requireAntdComponent } from "./require-antd-component.js";
